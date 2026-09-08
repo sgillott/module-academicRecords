@@ -1,0 +1,249 @@
+/* Wrapper: creates the inset gap from the outer section container */
+.criteriaTable {
+  margin: 0 0 14px 0;          /* remove side margin */
+  padding: 0 16px;             /* inner horizontal padding */
+  border: 1px solid #e6e6e6;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+/* Remove Gibbon utility padding from criteria rows */
+.criteriaRow {
+  padding: 0 !important;
+}
+
+.criteriaRow.px-4,
+.criteriaHeaderRow.px-4 {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.criteriaRow.py-4,
+.criteriaHeaderRow.py-4 {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.criteriaHeaderRow {
+  display: grid !important;
+  grid-template-columns: 240px 1fr;
+  align-items: center;
+  justify-content: initial !important;
+
+  background: #f3f3f3;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.criteriaHeader-left {
+  text-align: right;
+  padding: 6px 14px 6px 10px !important;
+  border-right: 2px solid #000;
+}
+
+.criteriaHeader-right {
+  display: block !important;   /* cancel flex utility */
+  text-align: left !important;
+  justify-content: flex-start !important;
+  padding: 6px 10px 6px 14px !important;
+}
+.criteriaCell-left,
+.criteriaCell-right {
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
+}
+
+/* Row container */
+.criteriaRow {
+  display: grid !important;
+  grid-template-columns: 240px 1fr;
+  column-gap: 0 !important;   /* we will use padding instead */
+  align-items: center;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: 0 !important;       /* remove row border */
+  background: transparent;
+}
+
+/* Draw the horizontal “table” lines */
+.criteriaRow + .criteriaRow .criteriaCell-left,
+.criteriaRow + .criteriaRow .criteriaCell-right {
+  border-top: 1px solid #e6e6e6;
+}
+
+/* Left cell */
+.criteriaCell-left {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+
+  text-align: right;
+  padding: 6px 14px 6px 10px !important;
+
+  border-right: 2px solid #000;  /* stronger divider */
+}
+
+/* Label bold and no wrapping */
+.criteriaCell-left label {
+  font-weight: 700 !important;
+  white-space: nowrap;
+  margin: 0 !important;
+}
+
+/* Toggle spacing */
+.criteriaCell-left .criteria-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Right cell */
+.criteriaCell-right {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+
+  padding: 6px 10px 6px 14px !important; /* padding gives the visual gap */
+}
+
+/* Values container */
+.criteriaCell-right .criteria-values {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start !important;
+
+  gap: 8px 16px;
+}
+
+/* Prevent wrapping in labels */
+.criteriaCell-right .criteria-values label {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Kill any default label chaining margin */
+.criteriaCell-right label + label,
+.criteriaCell-left label + label {
+  margin-left: 0 !important;
+}
+
+/* Dark blue for criteria toggles */
+.criteriaCell-left input[type="checkbox"] {
+  color: #0b2a6f;  /* deep navy */
+}
+
+.criteriaCell-right input[type="checkbox"] {
+  transform: scale(0.90);
+}
+
+.store-ajax-status {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.store-filter-loader {
+  display: none;
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  vertical-align: middle;
+  position: relative;
+  color: #6b7280;
+  line-height: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.store-filter-loader.is-active {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+}
+
+.store-filter-loader.is-working {
+  color: #6b7280;
+}
+
+.store-filter-loader.is-error {
+  color: #dc2626;
+}
+
+.store-filter-loader.is-success {
+  color: #16a34a;
+}
+
+.store-filter-loader svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.cat4-mapping-row {
+  transition: background-color 0.15s ease;
+}
+
+.cat4-mapping-row-saved td {
+  background: #ffffff !important;
+}
+
+.cat4-mapping-row-high td {
+  background: #f0fdf4 !important;
+}
+
+.cat4-mapping-row-medium td {
+  background: #fffbeb !important;
+}
+
+.cat4-mapping-row-changed td {
+  background: #eff6ff !important;
+}
+
+.cat4-mapping-row-missing td {
+  background: #fef2f2 !important;
+}
+
+.cat4-mapping-row select.cat4-mapping-select {
+  box-shadow: none !important;
+  background: #fff !important;
+  min-width: 360px;
+  appearance: auto !important;
+  -webkit-appearance: menulist !important;
+  -moz-appearance: menulist !important;
+  background-image: initial !important;
+  padding-right: 36px !important;
+}
+
+.cat4-mapping-row-saved select.cat4-mapping-select {
+  border: 2px solid #22c55e !important;
+}
+
+.cat4-mapping-row-high select.cat4-mapping-select {
+  border: 2px solid #22c55e !important;
+}
+
+.cat4-mapping-row-medium select.cat4-mapping-select {
+  border: 2px solid #f59e0b !important;
+}
+
+.cat4-mapping-row-changed select.cat4-mapping-select {
+  border: 2px solid #3b82f6 !important;
+}
+
+.cat4-mapping-row-missing select.cat4-mapping-select {
+  border: 2px solid #dc2626 !important;
+  box-shadow: none !important;
+}

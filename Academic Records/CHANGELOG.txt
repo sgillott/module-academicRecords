@@ -1,0 +1,64 @@
+CHANGELOG
+=========
+
+v0.3.01
+-------
+Fixed the CAT4 Import Mapping page, where the Non-Verbal field offered the KS3
+subject columns instead of the CAT4 score columns, so there was nothing to pick
+that matched the "Non-verbal SAS" heading in the spreadsheet. The hyphen in the
+field name was being turned into a space before the field was recognised as a
+score field. Non-Verbal now suggests "Non-verbal SAS", and a field written as
+"Non Verbal" works the same way.
+
+v0.3.00
+-------
+The student export now sends the Year column in the format GL Assessment
+expect, as a prefix and a number such as Y7, P4 or S3.
+Added a Testwise Region setting, because Gibbon only records "United Kingdom"
+and cannot tell England, Scotland and Northern Ireland apart. The region sets
+the prefix - Y for England and the Republic of Ireland, P and S for Scotland,
+P and Y for Northern Ireland.
+Added a Testwise Year Groups page that suggests a value for every year group
+and lets you correct it. International schools on a different year scale can
+map each year group by hand, so an American Grade 6 exports as Y7. The export
+page warns you if a year group with students has not been confirmed.
+Early Years, Kindergarten and Reception classes cannot be read from their name,
+so they are placed by their position in the year group order instead. The
+class before Y1 is suggested as Y0.
+Backup and Restore now covers the Testwise Region and the year group mappings.
+Mappings are matched on the year group name when restored, so a backup can be
+moved to another Gibbon install where the internal IDs are different. Restore
+now only touches the parts the file actually holds, so an older backup, or one
+from a school that does not use CAT4 or GL Assessment, restores what it has
+instead of being rejected or emptying tables it says nothing about.
+Corrected the export column headers to match the GL Assessment template:
+Forename, Surname, English as an additional language, Year and SEND.
+Dates in the export are now written as DD/MM/YYYY. They were going out as
+MM/DD/YYYY, which GL Assessment reject.
+Forename now uses the student's preferred name and exports only one name.
+It was sending every given name, which GL Assessment reject.
+Date Joined School is left blank when it falls on or before the date of birth.
+SEND now exports "Yes" instead of "SEN", which is not a value GL accept.
+Ethnicity and Nationality are checked against the values GL publish. Anything
+that does not match is left blank rather than sent and rejected. Corrected the
+nationality spellings for Luxembourg and the Maldives to match GL.
+
+v0.2.00
+-------
+Added the CAT4 mapping tables so spreadsheet columns can be matched to
+External Assessment fields, and added the CAT4 import and mapping pages.
+Added the student data export for GL Assessment. The export no longer needs
+a join date - leave the join date filter off to export everyone enrolled in
+the current school year.
+Set the module and core version numbers properly so Gibbon can offer updates,
+and filled in the database update steps for earlier installs.
+Removed the leftover starter template pages and the old preview page that the
+Store Grades wizard replaced.
+
+v0.1.00
+-------
+Added the Store Grades wizard and the module settings page.
+
+v0.0.00
+-------
+First version.
