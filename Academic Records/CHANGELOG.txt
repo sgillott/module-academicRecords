@@ -9,6 +9,13 @@ that matched the "Non-verbal SAS" heading in the spreadsheet. The hyphen in the
 field name was being turned into a space before the field was recognised as a
 score field. Non-Verbal now suggests "Non-verbal SAS", and a field written as
 "Non Verbal" works the same way.
+Fixed the module permissions. Every action except View Academic Records was set
+to refuse staff roles, so on the Manage Permissions page all of their tick boxes
+were greyed out and could not be set. Saving that page then removed the
+permissions the module was installed with, which locked administrators out of
+the pages. All actions now accept staff roles, and the update restores the
+administrator permissions on an existing install. The pages stay closed to
+students, parents and other roles.
 
 v0.3.00
 -------

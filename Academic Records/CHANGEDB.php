@@ -68,3 +68,9 @@ INSERT INTO `gibbonAction` (`gibbonModuleID`, `name`, `precedence`, `category`, 
 INSERT INTO `gibbonPermission` (`gibbonRoleID`, `gibbonActionID`) VALUES ('001', (SELECT gibbonActionID FROM gibbonAction JOIN gibbonModule ON (gibbonAction.gibbonModuleID=gibbonModule.gibbonModuleID) WHERE gibbonModule.name='Academic Records' AND gibbonAction.name='Testwise Year Groups'));end
 INSERT INTO `gibbonPermission` (`gibbonRoleID`, `gibbonActionID`) VALUES ('006', (SELECT gibbonActionID FROM gibbonAction JOIN gibbonModule ON (gibbonAction.gibbonModuleID=gibbonModule.gibbonModuleID) WHERE gibbonModule.name='Academic Records' AND gibbonAction.name='Testwise Year Groups'));end
 UPDATE `gibbonAction` SET `precedence`=7 WHERE `name`='CAT4 Import Settings' AND `gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records');end";
+
+// v0.3.01
+$count++;
+$sql[$count][0] = "0.3.01";
+$sql[$count][1] = "UPDATE `gibbonAction` SET `categoryPermissionStaff`='Y' WHERE `gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records');end
+INSERT INTO `gibbonPermission` (`gibbonRoleID`, `gibbonActionID`) SELECT '001', `gibbonAction`.`gibbonActionID` FROM `gibbonAction` WHERE `gibbonAction`.`gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records') AND NOT EXISTS (SELECT 1 FROM (SELECT * FROM `gibbonPermission`) AS `held` WHERE `held`.`gibbonActionID`=`gibbonAction`.`gibbonActionID` AND `held`.`gibbonRoleID`='001');end";
