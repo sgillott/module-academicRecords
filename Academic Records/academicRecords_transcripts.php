@@ -356,6 +356,16 @@ $row->addSelect('status')
     ->selected('Draft')
     ->required();
 
+// A choice for this run, not for the student and not for the school. The
+// same school prints both kinds in the same week: a snapshot with current
+// marks for an accreditation visit, and a clean record without them.
+$row = $generateForm->addRow();
+$row->addLabel('includeInterim', __('Current Marks'))
+    ->description(__('While a term is being taught and no grade has been stored, print the current Markbook average as a provisional grade, marked with an asterisk. No leaves those cells empty.'));
+$row->addYesNo('includeInterim')
+    ->selected('Y')
+    ->required();
+
 $row = $generateForm->addRow();
 $row->addFooter();
 $row->addSubmit(__('Generate Transcripts'));

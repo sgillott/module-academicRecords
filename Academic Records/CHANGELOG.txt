@@ -29,6 +29,15 @@ Copy all four files from the module's templates/reports folder into the
 Reports custom asset path and Scan, as before. The Student Info section
 already in a template keeps working and gets the new fields the next time it
 is edited.
+Generate Transcripts now has a Current Marks choice beside Draft or Final.
+Set to No, a cell for a term still being taught and with no stored grade is
+left empty rather than filled from the Markbook, so a clean record can be
+printed part way through the year. Yes prints the current marks as before,
+and is the default. It is a choice for the run, not a setting, because the
+same school prints both kinds in the same week: a snapshot with current
+marks for an accreditation visit, and a clean record without them. A
+transcript generated from the Reports module's own Generate page prints
+current marks.
 
 v0.4.00
 -------

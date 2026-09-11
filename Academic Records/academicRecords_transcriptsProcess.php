@@ -42,6 +42,7 @@ if (!isActionAccessible($guid, $connection2, '/modules/Academic Records/academic
 $gibbonReportID = (string) ($_POST['gibbonReportID'] ?? '');
 $personIDs = normalizeRequestList($_POST['gibbonPersonID'] ?? []);
 $status = ($_POST['status'] ?? 'Draft') === 'Final' ? 'Final' : 'Draft';
+$includeInterim = ($_POST['includeInterim'] ?? 'Y') === 'N' ? 'N' : 'Y';
 $graduationYears = is_array($_POST['graduationYear'] ?? null) ? $_POST['graduationYear'] : [];
 $graduationDates = is_array($_POST['graduationDate'] ?? null) ? $_POST['graduationDate'] : [];
 $gpaFlags = is_array($_POST['showGPA'] ?? null) ? $_POST['showGPA'] : [];
@@ -169,9 +170,12 @@ foreach ($personIDs as $personID) {
         continue;
     }
 
+    // The engine hands this array to every source unchanged, which is how a
+    // run option reaches the transcript source without being stored anywhere.
     $ids = [
         'gibbonStudentEnrolmentID' => $enrolment['gibbonStudentEnrolmentID'],
         'gibbonReportingCycleID' => $report['gibbonReportingCycleID'],
+        'includeInterim' => $includeInterim,
     ];
 
     try {

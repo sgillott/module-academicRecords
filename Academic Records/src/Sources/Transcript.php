@@ -195,12 +195,18 @@ class Transcript extends DataSource
      * Build the transcript for one student.
      *
      * @param array $ids Identifiers from the report context. Needs
-     *                   gibbonStudentEnrolmentID and gibbonReportID.
+     *                   gibbonStudentEnrolmentID and gibbonReportID. An
+     *                   includeInterim of N leaves cells with no stored grade
+     *                   empty instead of asking the Markbook. Absent means Y,
+     *                   so a run from the Reports module's own Generate page
+     *                   prints current marks as before.
      *
      * @return array
      */
     public function getData($ids = [])
     {
+        $includeInterim = (string) ($ids['includeInterim'] ?? 'Y') !== 'N';
+
         $empty = [
             'classOf' => '',
             'graduationDate' => '',
@@ -270,7 +276,8 @@ class Transcript extends DataSource
             $yearClasses = $classesByYear[$schoolYearID] ?? [];
 
             // An interim grade only makes sense while the year is still
-            // running. A finished year with a gap has simply not been stored.
+            // running, and only when this run asked for one. A finished year
+            // with a gap has simply not been stored.
             $yearInProgress = !empty($schoolYear['lastDay']) && (string) $schoolYear['lastDay'] >= $this->today;
 
             $courses = $this->buildCourses(
@@ -280,7 +287,7 @@ class Transcript extends DataSource
                 $courseCredit,
                 $gradeCredit,
                 $personID,
-                $yearInProgress ? $scaleID : ''
+                $includeInterim && $yearInProgress ? $scaleID : ''
             );
 
             if (empty($courses)) {
