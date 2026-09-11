@@ -6,7 +6,7 @@ $description = 'Stores reported grade scale outcomes as authoritative academic r
 $entryURL    = 'academicRecords_store.php';
 $type        = 'Additional';
 $category    = 'Assess';
-$version     = '0.3.03';
+$version     = '0.4.00';
 $author      = 'Steve Gillott';
 $url         = '';
 
@@ -53,6 +53,60 @@ $moduleTables = [
   `testwiseYear` varchar(4) NOT NULL COMMENT 'Prefix and number, such as Y7, P4 or S3',
   PRIMARY KEY (`academicRecordsYearGroupMapID`),
   UNIQUE KEY `gibbonYearGroupID` (`gibbonYearGroupID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;",
+
+"CREATE TABLE `academicRecordsStoredGrade` (
+  `academicRecordsStoredGradeID` int(12) unsigned zerofill NOT NULL AUTO_INCREMENT,
+  `gibbonInternalAssessmentColumnID` int(10) unsigned zerofill NOT NULL,
+  `gibbonSchoolYearID` int(3) unsigned zerofill NOT NULL,
+  `gibbonSchoolYearTermID` int(5) unsigned zerofill NOT NULL COMMENT 'The term the grades belong to, not the cycle dates',
+  `gibbonReportingCycleID` int(10) unsigned zerofill DEFAULT NULL,
+  `gibbonCourseClassID` int(8) unsigned zerofill NOT NULL,
+  `timestampCreated` datetime NOT NULL,
+  `timestampUpdated` datetime DEFAULT NULL,
+  `gibbonPersonIDCreated` int(10) unsigned zerofill DEFAULT NULL,
+  `gibbonPersonIDUpdated` int(10) unsigned zerofill DEFAULT NULL,
+  PRIMARY KEY (`academicRecordsStoredGradeID`),
+  UNIQUE KEY `gibbonInternalAssessmentColumnID` (`gibbonInternalAssessmentColumnID`),
+  KEY `gibbonSchoolYearTermID` (`gibbonSchoolYearTermID`),
+  KEY `gibbonSchoolYearID` (`gibbonSchoolYearID`),
+  KEY `gibbonCourseClassID` (`gibbonCourseClassID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;",
+
+"CREATE TABLE `academicRecordsTranscriptStudent` (
+  `academicRecordsTranscriptStudentID` int(12) unsigned zerofill NOT NULL AUTO_INCREMENT,
+  `gibbonPersonID` int(10) unsigned zerofill NOT NULL,
+  `graduationYear` varchar(4) DEFAULT NULL COMMENT 'Overrides the derived Class of value',
+  `graduationDate` date DEFAULT NULL COMMENT 'Overrides the derived graduation date',
+  `showGPA` enum('Y','N') NOT NULL DEFAULT 'N' COMMENT 'Print GPA columns and the overall GPA for this student',
+  `timestampUpdated` datetime DEFAULT NULL,
+  `gibbonPersonIDUpdated` int(10) unsigned zerofill DEFAULT NULL,
+  PRIMARY KEY (`academicRecordsTranscriptStudentID`),
+  UNIQUE KEY `gibbonPersonID` (`gibbonPersonID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;",
+
+"CREATE TABLE `academicRecordsCourseCredit` (
+  `academicRecordsCourseCreditID` int(12) unsigned zerofill NOT NULL AUTO_INCREMENT,
+  `gibbonCourseID` int(8) unsigned zerofill NOT NULL,
+  `creditPerTerm` decimal(4,2) DEFAULT NULL COMMENT 'Credit available for one term. Null means the course carries no credit',
+  `showOnTranscript` enum('Y','N') NOT NULL DEFAULT 'Y',
+  `timestampUpdated` datetime DEFAULT NULL,
+  `gibbonPersonIDUpdated` int(10) unsigned zerofill DEFAULT NULL,
+  PRIMARY KEY (`academicRecordsCourseCreditID`),
+  UNIQUE KEY `gibbonCourseID` (`gibbonCourseID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;",
+
+"CREATE TABLE `academicRecordsGradeSetting` (
+  `academicRecordsGradeSettingID` int(12) unsigned zerofill NOT NULL AUTO_INCREMENT,
+  `gibbonScaleID` int(5) unsigned zerofill NOT NULL,
+  `value` varchar(10) NOT NULL COMMENT 'Grade value as stored on the assessment entry',
+  `creditFactor` decimal(4,2) DEFAULT NULL COMMENT 'Share of the course credit this grade earns',
+  `percentMin` decimal(5,2) DEFAULT NULL COMMENT 'Lowest percentage that reaches this grade',
+  `percentMax` decimal(5,2) DEFAULT NULL COMMENT 'Highest percentage for this grade',
+  `gpaPoints` decimal(3,2) DEFAULT NULL COMMENT 'Grade point value, such as 4.00',
+  `gpaLetter` varchar(4) DEFAULT NULL COMMENT 'Letter grade on the GPA scale, such as A',
+  PRIMARY KEY (`academicRecordsGradeSettingID`),
+  UNIQUE KEY `gibbonScaleIDValue` (`gibbonScaleID`,`value`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;"
 
 ];
@@ -67,6 +121,28 @@ VALUES
  'The Internal Assessment Type used for stored grade columns created by this module.',
  'Academic Records',
  '')
+";
+
+$gibbonSetting[] = "
+INSERT INTO gibbonSetting
+(name, nameDisplay, description, scope, value)
+VALUES
+('transcriptYearGroups',
+ 'Transcript Year Groups',
+ 'Which year groups appear on a transcript, as a comma separated list of gibbonYearGroupID. Empty means every year group.',
+ 'Academic Records',
+ '')
+";
+
+$gibbonSetting[] = "
+INSERT INTO gibbonSetting
+(name, nameDisplay, description, scope, value)
+VALUES
+('transcriptGpaMethod',
+ 'Transcript GPA Method',
+ 'How the overall GPA is worked out: creditWeighted weights each grade by the credit it earned, simpleMean averages the grade points.',
+ 'Academic Records',
+ 'creditWeighted')
 ";
 
 $gibbonSetting[] = "
@@ -129,6 +205,26 @@ $actionRows = [
     ],
 
     [
+        'name'                      => 'Generate Transcripts',
+        'precedence'                => '2',
+        'category'                  => 'Manage',
+        'description'               => 'Generates transcripts for students using a Reports template.',
+        'URLList'                   => 'academicRecords_transcripts.php,academicRecords_transcriptsProcess.php',
+        'entryURL'                  => 'academicRecords_transcripts.php',
+        'entrySidebar'              => 'Y',
+        'menuShow'                  => 'Y',
+        'defaultPermissionAdmin'    => 'Y',
+        'defaultPermissionTeacher'  => 'N',
+        'defaultPermissionStudent'  => 'N',
+        'defaultPermissionParent'   => 'N',
+        'defaultPermissionSupport'  => 'N',
+        'categoryPermissionStaff'   => 'Y',
+        'categoryPermissionStudent' => 'N',
+        'categoryPermissionParent'  => 'N',
+        'categoryPermissionOther'   => 'N',
+    ],
+
+    [
         'name'                      => 'View Academic Records',
         'precedence'                => '1',
         'category'                  => 'View',
@@ -142,6 +238,26 @@ $actionRows = [
         'defaultPermissionStudent'  => 'N',
         'defaultPermissionParent'   => 'N',
         'defaultPermissionSupport'  => 'Y',
+        'categoryPermissionStaff'   => 'Y',
+        'categoryPermissionStudent' => 'N',
+        'categoryPermissionParent'  => 'N',
+        'categoryPermissionOther'   => 'N',
+    ],
+
+    [
+        'name'                      => 'View Transcripts',
+        'precedence'                => '1',
+        'category'                  => 'View',
+        'description'               => 'Opens the Reports archive for the transcript report.',
+        'URLList'                   => 'academicRecords_viewTranscripts.php',
+        'entryURL'                  => 'academicRecords_viewTranscripts.php',
+        'entrySidebar'              => 'Y',
+        'menuShow'                  => 'Y',
+        'defaultPermissionAdmin'    => 'Y',
+        'defaultPermissionTeacher'  => 'N',
+        'defaultPermissionStudent'  => 'N',
+        'defaultPermissionParent'   => 'N',
+        'defaultPermissionSupport'  => 'N',
         'categoryPermissionStaff'   => 'Y',
         'categoryPermissionStudent' => 'N',
         'categoryPermissionParent'  => 'N',
@@ -262,6 +378,46 @@ $actionRows = [
         'defaultPermissionStudent'  => 'N',
         'defaultPermissionParent'   => 'N',
         'defaultPermissionSupport'  => 'Y',
+        'categoryPermissionStaff'   => 'Y',
+        'categoryPermissionStudent' => 'N',
+        'categoryPermissionParent'  => 'N',
+        'categoryPermissionOther'   => 'N',
+    ],
+
+    [
+        'name'                      => 'Course Credits',
+        'precedence'                => '9',
+        'category'                  => 'Settings',
+        'description'               => 'Sets the credit each course carries, and whether it appears on a transcript.',
+        'URLList'                   => 'academicRecords_courseCredits.php,academicRecords_courseCreditsProcess.php',
+        'entryURL'                  => 'academicRecords_courseCredits.php',
+        'entrySidebar'              => 'Y',
+        'menuShow'                  => 'Y',
+        'defaultPermissionAdmin'    => 'Y',
+        'defaultPermissionTeacher'  => 'N',
+        'defaultPermissionStudent'  => 'N',
+        'defaultPermissionParent'   => 'N',
+        'defaultPermissionSupport'  => 'N',
+        'categoryPermissionStaff'   => 'Y',
+        'categoryPermissionStudent' => 'N',
+        'categoryPermissionParent'  => 'N',
+        'categoryPermissionOther'   => 'N',
+    ],
+
+    [
+        'name'                      => 'Transcript Setup',
+        'precedence'                => '8',
+        'category'                  => 'Settings',
+        'description'               => 'Configures the values transcripts are built from.',
+        'URLList'                   => 'academicRecords_transcriptSetup.php,academicRecords_transcriptSetupProcess.php',
+        'entryURL'                  => 'academicRecords_transcriptSetup.php',
+        'entrySidebar'              => 'Y',
+        'menuShow'                  => 'Y',
+        'defaultPermissionAdmin'    => 'Y',
+        'defaultPermissionTeacher'  => 'N',
+        'defaultPermissionStudent'  => 'N',
+        'defaultPermissionParent'   => 'N',
+        'defaultPermissionSupport'  => 'N',
         'categoryPermissionStaff'   => 'Y',
         'categoryPermissionStudent' => 'N',
         'categoryPermissionParent'  => 'N',

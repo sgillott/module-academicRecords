@@ -74,3 +74,69 @@ $count++;
 $sql[$count][0] = "0.3.01";
 $sql[$count][1] = "UPDATE `gibbonAction` SET `categoryPermissionStaff`='Y' WHERE `gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records');end
 INSERT INTO `gibbonPermission` (`gibbonRoleID`, `gibbonActionID`) SELECT '001', `gibbonAction`.`gibbonActionID` FROM `gibbonAction` WHERE `gibbonAction`.`gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records') AND NOT EXISTS (SELECT 1 FROM (SELECT * FROM `gibbonPermission`) AS `held` WHERE `held`.`gibbonActionID`=`gibbonAction`.`gibbonActionID` AND `held`.`gibbonRoleID`='001');end";
+
+// v0.4.00
+$count++;
+$sql[$count][0] = "0.4.00";
+$sql[$count][1] = "CREATE TABLE IF NOT EXISTS `academicRecordsStoredGrade` (
+  `academicRecordsStoredGradeID` int(12) unsigned zerofill NOT NULL AUTO_INCREMENT,
+  `gibbonInternalAssessmentColumnID` int(10) unsigned zerofill NOT NULL,
+  `gibbonSchoolYearID` int(3) unsigned zerofill NOT NULL,
+  `gibbonSchoolYearTermID` int(5) unsigned zerofill NOT NULL COMMENT 'The term the grades belong to, not the cycle dates',
+  `gibbonReportingCycleID` int(10) unsigned zerofill DEFAULT NULL,
+  `gibbonCourseClassID` int(8) unsigned zerofill NOT NULL,
+  `timestampCreated` datetime NOT NULL,
+  `timestampUpdated` datetime DEFAULT NULL,
+  `gibbonPersonIDCreated` int(10) unsigned zerofill DEFAULT NULL,
+  `gibbonPersonIDUpdated` int(10) unsigned zerofill DEFAULT NULL,
+  PRIMARY KEY (`academicRecordsStoredGradeID`),
+  UNIQUE KEY `gibbonInternalAssessmentColumnID` (`gibbonInternalAssessmentColumnID`),
+  KEY `gibbonSchoolYearTermID` (`gibbonSchoolYearTermID`),
+  KEY `gibbonSchoolYearID` (`gibbonSchoolYearID`),
+  KEY `gibbonCourseClassID` (`gibbonCourseClassID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;end
+INSERT INTO `gibbonAction` (`gibbonModuleID`, `name`, `precedence`, `category`, `description`, `URLList`, `entryURL`, `entrySidebar`, `menuShow`, `defaultPermissionAdmin`, `defaultPermissionTeacher`, `defaultPermissionStudent`, `defaultPermissionParent`, `defaultPermissionSupport`, `categoryPermissionStaff`, `categoryPermissionStudent`, `categoryPermissionParent`, `categoryPermissionOther`) SELECT (SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records'), 'Transcript Setup', 8, 'Settings', 'Configures the values transcripts are built from.', 'academicRecords_transcriptSetup.php,academicRecords_transcriptSetupProcess.php', 'academicRecords_transcriptSetup.php', 'Y', 'Y', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM (SELECT * FROM gibbonAction) AS held WHERE held.name='Transcript Setup' AND held.gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records'));end
+INSERT INTO `gibbonPermission` (`gibbonRoleID`, `gibbonActionID`) SELECT '001', `gibbonAction`.`gibbonActionID` FROM `gibbonAction` WHERE `gibbonAction`.`gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records') AND `gibbonAction`.`name`='Transcript Setup' AND NOT EXISTS (SELECT 1 FROM (SELECT * FROM `gibbonPermission`) AS `held` WHERE `held`.`gibbonActionID`=`gibbonAction`.`gibbonActionID` AND `held`.`gibbonRoleID`='001');end
+CREATE TABLE IF NOT EXISTS `academicRecordsTranscriptStudent` (
+  `academicRecordsTranscriptStudentID` int(12) unsigned zerofill NOT NULL AUTO_INCREMENT,
+  `gibbonPersonID` int(10) unsigned zerofill NOT NULL,
+  `graduationYear` varchar(4) DEFAULT NULL COMMENT 'Overrides the derived Class of value',
+  `graduationDate` date DEFAULT NULL COMMENT 'Overrides the derived graduation date',
+  `showGPA` enum('Y','N') NOT NULL DEFAULT 'N' COMMENT 'Print GPA columns and the overall GPA for this student',
+  `timestampUpdated` datetime DEFAULT NULL,
+  `gibbonPersonIDUpdated` int(10) unsigned zerofill DEFAULT NULL,
+  PRIMARY KEY (`academicRecordsTranscriptStudentID`),
+  UNIQUE KEY `gibbonPersonID` (`gibbonPersonID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;end
+INSERT IGNORE INTO gibbonSetting (name, nameDisplay, description, scope, value) VALUES ('transcriptYearGroups', 'Transcript Year Groups', 'Which year groups appear on a transcript, as a comma separated list of gibbonYearGroupID. Empty means every year group.', 'Academic Records', '');end
+CREATE TABLE IF NOT EXISTS `academicRecordsCourseCredit` (
+  `academicRecordsCourseCreditID` int(12) unsigned zerofill NOT NULL AUTO_INCREMENT,
+  `gibbonCourseID` int(8) unsigned zerofill NOT NULL,
+  `creditPerTerm` decimal(4,2) DEFAULT NULL COMMENT 'Credit available for one term. Null means the course carries no credit',
+  `showOnTranscript` enum('Y','N') NOT NULL DEFAULT 'Y',
+  `timestampUpdated` datetime DEFAULT NULL,
+  `gibbonPersonIDUpdated` int(10) unsigned zerofill DEFAULT NULL,
+  PRIMARY KEY (`academicRecordsCourseCreditID`),
+  UNIQUE KEY `gibbonCourseID` (`gibbonCourseID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;end
+CREATE TABLE IF NOT EXISTS `academicRecordsGradeSetting` (
+  `academicRecordsGradeSettingID` int(12) unsigned zerofill NOT NULL AUTO_INCREMENT,
+  `gibbonScaleID` int(5) unsigned zerofill NOT NULL,
+  `value` varchar(10) NOT NULL COMMENT 'Grade value as stored on the assessment entry',
+  `creditFactor` decimal(4,2) DEFAULT NULL COMMENT 'Share of the course credit this grade earns',
+  `percentMin` decimal(5,2) DEFAULT NULL COMMENT 'Lowest percentage that reaches this grade',
+  `percentMax` decimal(5,2) DEFAULT NULL COMMENT 'Highest percentage for this grade',
+  `gpaPoints` decimal(3,2) DEFAULT NULL COMMENT 'Grade point value, such as 4.00',
+  `gpaLetter` varchar(4) DEFAULT NULL COMMENT 'Letter grade on the GPA scale, such as A',
+  PRIMARY KEY (`academicRecordsGradeSettingID`),
+  UNIQUE KEY `gibbonScaleIDValue` (`gibbonScaleID`,`value`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;end
+DROP TABLE IF EXISTS `academicRecordsGradeCredit`;end
+INSERT IGNORE INTO gibbonSetting (name, nameDisplay, description, scope, value) VALUES ('transcriptGpaMethod', 'Transcript GPA Method', 'How the overall GPA is worked out: creditWeighted weights each grade by the credit it earned, simpleMean averages the grade points.', 'Academic Records', 'creditWeighted');end
+INSERT INTO `gibbonAction` (`gibbonModuleID`, `name`, `precedence`, `category`, `description`, `URLList`, `entryURL`, `entrySidebar`, `menuShow`, `defaultPermissionAdmin`, `defaultPermissionTeacher`, `defaultPermissionStudent`, `defaultPermissionParent`, `defaultPermissionSupport`, `categoryPermissionStaff`, `categoryPermissionStudent`, `categoryPermissionParent`, `categoryPermissionOther`) SELECT (SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records'), 'Course Credits', 9, 'Settings', 'Sets the credit each course carries, and whether it appears on a transcript.', 'academicRecords_courseCredits.php,academicRecords_courseCreditsProcess.php', 'academicRecords_courseCredits.php', 'Y', 'Y', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM (SELECT * FROM gibbonAction) AS held WHERE held.name='Course Credits' AND held.gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records'));end
+INSERT INTO `gibbonPermission` (`gibbonRoleID`, `gibbonActionID`) SELECT '001', `gibbonAction`.`gibbonActionID` FROM `gibbonAction` WHERE `gibbonAction`.`gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records') AND `gibbonAction`.`name`='Course Credits' AND NOT EXISTS (SELECT 1 FROM (SELECT * FROM `gibbonPermission`) AS `held` WHERE `held`.`gibbonActionID`=`gibbonAction`.`gibbonActionID` AND `held`.`gibbonRoleID`='001');end
+DELETE FROM gibbonSetting WHERE scope='Academic Records' AND name='transcriptYears';end
+INSERT INTO `gibbonAction` (`gibbonModuleID`, `name`, `precedence`, `category`, `description`, `URLList`, `entryURL`, `entrySidebar`, `menuShow`, `defaultPermissionAdmin`, `defaultPermissionTeacher`, `defaultPermissionStudent`, `defaultPermissionParent`, `defaultPermissionSupport`, `categoryPermissionStaff`, `categoryPermissionStudent`, `categoryPermissionParent`, `categoryPermissionOther`) SELECT (SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records'), 'Generate Transcripts', 2, 'Manage', 'Generates transcripts for students using a Reports template.', 'academicRecords_transcripts.php,academicRecords_transcriptsProcess.php', 'academicRecords_transcripts.php', 'Y', 'Y', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM (SELECT * FROM gibbonAction) AS held WHERE held.name='Generate Transcripts' AND held.gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records'));end
+INSERT INTO `gibbonPermission` (`gibbonRoleID`, `gibbonActionID`) SELECT '001', `gibbonAction`.`gibbonActionID` FROM `gibbonAction` WHERE `gibbonAction`.`gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records') AND `gibbonAction`.`name`='Generate Transcripts' AND NOT EXISTS (SELECT 1 FROM (SELECT * FROM `gibbonPermission`) AS `held` WHERE `held`.`gibbonActionID`=`gibbonAction`.`gibbonActionID` AND `held`.`gibbonRoleID`='001');end
+INSERT INTO `gibbonAction` (`gibbonModuleID`, `name`, `precedence`, `category`, `description`, `URLList`, `entryURL`, `entrySidebar`, `menuShow`, `defaultPermissionAdmin`, `defaultPermissionTeacher`, `defaultPermissionStudent`, `defaultPermissionParent`, `defaultPermissionSupport`, `categoryPermissionStaff`, `categoryPermissionStudent`, `categoryPermissionParent`, `categoryPermissionOther`) SELECT (SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records'), 'View Transcripts', 1, 'View', 'Opens the Reports archive for the transcript report.', 'academicRecords_viewTranscripts.php', 'academicRecords_viewTranscripts.php', 'Y', 'Y', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM (SELECT * FROM gibbonAction) AS held WHERE held.name='View Transcripts' AND held.gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records'));end
+INSERT INTO `gibbonPermission` (`gibbonRoleID`, `gibbonActionID`) SELECT '001', `gibbonAction`.`gibbonActionID` FROM `gibbonAction` WHERE `gibbonAction`.`gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records') AND `gibbonAction`.`name`='View Transcripts' AND NOT EXISTS (SELECT 1 FROM (SELECT * FROM `gibbonPermission`) AS `held` WHERE `held`.`gibbonActionID`=`gibbonAction`.`gibbonActionID` AND `held`.`gibbonRoleID`='001');end";

@@ -1,0 +1,271 @@
+{#<!--
+name: Transcript - Academic Record
+category: Academic Records
+types: Body
+sources:
+    student: Student
+    transcript: 'Gibbon\Module\AcademicRecords\Sources\Transcript'
+-->#}
+{#
+    Copy this file into the Reports custom asset path, which is
+    /uploads/reports/templates by default, then run Reports > Template Builder
+    > Assets > Components > Scan. The component then appears in the Template
+    Builder under the Academic Records category.
+
+    The sources block above is what links this layout to the Academic Records
+    module. The fully qualified class name is required: the Reports DataFactory
+    falls back to class_exists for any name it does not recognise as one of its
+    own sources, which is how a module outside Reports supplies data.
+
+    Everything below the grade table is school specific text. Edit it here, or
+    in Template Builder > Assets > Components, to suit your school.
+#}
+{{- stylesheet ? include(stylesheet) -}}
+
+<style>
+  .transcript-layout {
+      width: 100%;
+      border-spacing: 8px 0;
+      font-family: "DejaVu Sans", sans-serif;
+      font-size: 8pt;
+  }
+  .main-cell { width: 72%; vertical-align: top; }
+  .side-cell { width: 28%; vertical-align: top; padding-left: 6px; }
+
+  table.report-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #444;
+      table-layout: fixed;
+  }
+  .report-table th, .report-table td {
+      border: 1px solid #444;
+      padding: 2px 3px;
+      font-size: 7.5pt;
+  }
+  .report-table th {
+      background-color: #eee;
+      text-align: center;
+      font-weight: bold;
+  }
+  .report-table th:first-child,
+  .report-table td:first-child {
+      width: 40%;
+      text-align: left;
+  }
+  .report-table td.grade,
+  .report-table td.credit { text-align: center; }
+  /* A grade worked out from the Markbook while the term is still running. */
+  .report-table td.provisional {
+      font-style: italic;
+      color: #555;
+  }
+  .provisional-note {
+      margin-top: 4px;
+      font-size: 6.8pt;
+      font-style: italic;
+  }
+  .gpa-overall {
+      margin-top: 8px;
+      font-size: 14pt;
+      font-weight: bold;
+  }
+  .report-table th.term { border-bottom: 0; }
+  .report-table th.sub {
+      border-top: 0;
+      font-weight: normal;
+      font-size: 7pt;
+  }
+
+  .year-row td {
+      background-color: #f6f6f6;
+      font-weight: bold;
+      font-size: 8pt;
+  }
+
+  .side-column {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 3px;
+      font-size: 7pt;
+  }
+  .side-box {
+      border: 1px solid #444;
+      padding: 5px 6px;
+  }
+  .side-box h4 {
+      text-align: center;
+      margin: 0 0 4px 0;
+      font-size: 8pt;
+  }
+
+  .grades-table {
+      width: 50%;
+      border-collapse: collapse;
+      margin-left: auto;
+      margin-right: auto;
+  }
+  .grades-table td {
+      padding: 1px 0;
+      vertical-align: top;
+      font-size: 7pt;
+  }
+  .grades-footer {
+      margin-top: 8px;
+      font-size: 6.8pt;
+      line-height: 1.25;
+      text-align: left;
+  }
+
+  .grad-req-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7pt;
+  }
+  .grad-req-table td { padding: 0; vertical-align: top; }
+  .grad-req-table td:last-child { text-align: right; }
+
+  .footnote {
+      border: 1px solid #444;
+      padding: 5px;
+      font-size: 6.8pt;
+      line-height: 1.2;
+  }
+</style>
+
+<table class="transcript-layout" cellspacing="0" cellpadding="0">
+  <tr>
+    <td class="main-cell">
+      {# Each term takes the grade and the credit it earned, plus a GPA column
+         for a student who has GPA switched on. #}
+      {% set termCount = transcript.termLabels|length %}
+      {% set perTerm = transcript.showGPA ? 3 : 2 %}
+      {% set columnCount = termCount * perTerm + 1 %}
+
+      <table class="report-table" nobr="true">
+        <tr>
+          <th rowspan="2">{{ __('Courses') }}</th>
+          {% for label in transcript.termLabels %}
+            <th class="term" colspan="{{ perTerm }}">{{ label }}</th>
+          {% endfor %}
+        </tr>
+        <tr>
+          {% for label in transcript.termLabels %}
+            <th class="sub">{{ __('Grade') }}</th>
+            {% if transcript.showGPA %}<th class="sub">{{ __('GPA') }}</th>{% endif %}
+            <th class="sub">{{ __('Credit') }}</th>
+          {% endfor %}
+        </tr>
+
+        {% for year in transcript.years %}
+          <tr class="year-row">
+            <td colspan="{{ columnCount }}">{{ year.label }}</td>
+          </tr>
+
+          {% for course in year.courses %}
+            <tr>
+              <td>{{ course.label }}</td>
+
+              {% for index in 0..(termCount - 1) %}
+                {% set cell = course.cells[index]|default(null) %}
+                {% set mark = cell and cell.provisional ? ' provisional' : '' %}
+                <td class="grade{{ mark }}">
+                  {%- if cell and cell.grade is not empty -%}
+                    {{ cell.grade }}{% if cell.provisional %}*{% endif %}
+                  {%- else -%}
+                    &nbsp;
+                  {%- endif -%}
+                </td>
+                {% if transcript.showGPA %}
+                  <td class="grade{{ mark }}">
+                    {%- if cell and cell.gpa is not empty -%}
+                      {{ cell.gpa }}
+                    {%- else -%}
+                      &nbsp;
+                    {%- endif -%}
+                  </td>
+                {% endif %}
+                <td class="credit{{ mark }}">
+                  {%- if cell and cell.credit is not empty -%}
+                    {{ cell.credit }}
+                  {%- else -%}
+                    &nbsp;
+                  {%- endif -%}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="{{ columnCount }}">
+              {{ __('No course enrolment was found for this student.') }}
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+
+      {% if transcript.showGPA and transcript.gpaOverall is not empty %}
+        <div class="gpa-overall">
+          GPA {{ transcript.gpaOverall }}{% if transcript.gpaProvisional %}*{% endif %}
+        </div>
+      {% endif %}
+
+      {% if transcript.hasProvisional %}
+        <div class="provisional-note">
+          * {{ __('Work in progress. This grade is the current class average for a term that has not finished, and is not yet part of the record.') }}
+        </div>
+      {% endif %}
+    </td>
+
+    <td class="side-cell">
+      <table class="side-column">
+        <tr>
+          <td class="side-box">
+            <h4 style="text-align: center; padding-bottom:6px;">Academic Grades</h4>
+            {# The bands come from Transcript Setup, so this box and the
+               grades worked out mid term can never drift apart. #}
+            <table class="grades-table" align="center">
+              {% for band in transcript.gradeBands %}
+                <tr>
+                  <td>{{ band.value }}</td>
+                  <td>...... {{ band.percentMin|round }}&ndash;{{ band.percentMax|round }}%</td>
+                </tr>
+              {% endfor %}
+            </table>
+
+            <div class="grades-footer">
+              iGCSE = General Certificate of Secondary Education<br/>
+              IB = International Baccalaureate<br/>
+              HSD = High School Diploma
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="side-box">
+            <h4>Graduation Requirements</h4>
+            <table class="grad-req-table">
+              <tr><td>English</td><td>4 credits</td></tr>
+              <tr><td>Mathematics</td><td>3 credits</td></tr>
+              <tr><td>Science</td><td>3 credits</td></tr>
+              <tr><td>Social Studies</td><td>3 credits</td></tr>
+              <tr><td>World Languages</td><td>3 credits</td></tr>
+              <tr><td>Physical Education</td><td>1 credit</td></tr>
+              <tr><td>Arts / Practical (IT)</td><td>1 credit</td></tr>
+              <tr><td>Electives*</td><td>6 credits</td></tr>
+              <tr><td><strong>Total</strong></td><td><strong>24 credits</strong></td></tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="footnote">
+            Since fewer than half of our students attend ISU for their entire secondary school career,
+            it is difficult to calculate a fair rank with such diverse backgrounds, academic programs, and educational goals.
+            ISU therefore does not calculate class rankings.
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>

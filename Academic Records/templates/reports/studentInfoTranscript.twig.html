@@ -1,0 +1,100 @@
+{#<!--
+name: Student Info for Transcript
+category: Academic Records
+types: Body
+icon: address-card.svg
+sources:
+    student: Student
+    transcript: 'Gibbon\Module\AcademicRecords\Sources\Transcript'
+-->#}
+{#
+    Copy this file into the Reports custom asset path, which is
+    /uploads/reports/templates by default, then run Reports > Template Builder
+    > Assets > Components > Scan.
+
+    This replaces an earlier version of the same header, which printed a dash
+    for Class of and for Graduation Date on every transcript:
+
+      - student.expectedGraduationDate does not exist. The Reports Student
+        source returns a fixed column list and holds no graduation field.
+      - the Class of sum tested for year groups named "Year 10", so it never
+        ran at a school whose year groups are named "Grade 10".
+
+    Both values now come from the Academic Records transcript source, which
+    counts the year groups still ahead of the student and reads the date from
+    the school year they land in. A value entered on the Generate Transcripts
+    page overrides that, for a student who repeats, skips or leaves early.
+
+    The right hand block is school specific text. Edit it to suit your school.
+#}
+{{- stylesheet ? include(stylesheet) -}}
+
+<style>
+  .student-info {
+      font-family: "DejaVu Sans", sans-serif;
+      font-size: 9pt;
+      line-height: 1.4;
+  }
+  .student-info strong { font-weight: 600; }
+  .student-left {
+      width: 40%;
+      vertical-align: top;
+      padding-left: 6mm;
+  }
+  .student-right {
+      width: 60%;
+      vertical-align: top;
+      padding-top: 6mm;
+      font-size: 7.5pt;
+  }
+  /* mPDF does not keep paragraph spacing inside a table cell, so a wrapped
+     line ran into the line below it. Each fact is a block with its own
+     spacing instead. */
+  .student-right div {
+      margin: 0 0 3px 0;
+      line-height: 1.35;
+  }
+</style>
+
+<table class="student-info" width="100%" cellspacing="0" cellpadding="0">
+  <tr>
+    {% if student.image_240 %}
+      <td width="16%" style="text-align:center; vertical-align:top;">
+        <img src="{{ basePath }}/{{ student.image_240 }}" style="height:35mm; border:1px solid #ccc;">
+      </td>
+    {% endif %}
+
+    <td style="vertical-align:top;">
+      <table width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td class="student-left">
+            <p style="font-size:10.5pt;"><strong>Name:</strong> {{ student.officialName }}</p>
+
+            {# Twig escapes filter values, so these fall back to the character
+               itself rather than to an HTML entity, which would print raw. #}
+            <p><strong>D.O.B:</strong> {{ formatUsing('dateReadable', student.dob) }}
+               &nbsp;&nbsp;&nbsp;<strong>Gender:</strong> {{ student.gender|default('—') }}</p>
+
+            <p><strong>Grade:</strong> {{ student.yearGroupName }}
+               &nbsp;&nbsp;&nbsp;<strong>Class of:</strong> {{ transcript.classOf|default('—') }}</p>
+
+            <p style="margin-top:4px;"><strong>Graduation Date:</strong>
+              {% if transcript.graduationDate %}
+                {{ formatUsing('dateReadable', transcript.graduationDate) }}
+              {% else %}
+                —
+              {% endif %}
+            </p>
+          </td>
+
+          <td class="student-right">
+            <div>Accredited by: <strong>Middle States Association of Colleges &amp; Schools</strong></div>
+            <div>School Type: <strong>Private EY1 &ndash; 12</strong>
+               &nbsp;&nbsp;&nbsp; CEEB Code: <strong>734072</strong></div>
+            <div><strong>iGCSE, IB Diploma and High School Diploma</strong> are offered</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>

@@ -1,6 +1,156 @@
 CHANGELOG
 =========
 
+v0.4.00
+-------
+Store Grades now asks which term the grades belong to, and records the answer
+against every column it writes. This is the first piece of transcript support.
+A transcript shows one column per term, and the reporting cycle cannot tell us
+which term a grade belongs to. In this school the cycle called "Semester 1"
+ends in February, well after the Semester 1 term has closed, so anything worked
+out from the cycle dates lands in the wrong column. The term is now recorded at
+the moment the grade is stored, so it is never guessed later.
+The page suggests a term from the start date of the reporting cycle, and you
+can change it before you continue. Storing the same cycle again updates the
+term rather than adding a second record, so a wrong choice is corrected by
+storing again.
+The term list comes from the school year itself, so a school running three
+terms gets three choices. Store Grades stops with a message if the school year
+of the chosen cycle has no terms set up yet.
+Added a Transcript Setup page. For now it lists stored grade columns that carry
+no term, which is anything stored before this release, and lets you set the
+term for each one. It suggests a term from the completion date of the column.
+Read the dates before saving, because a column completed after its term closed
+is suggested against the later term.
+Added a Generate Transcripts page. Transcripts are produced by the Reports
+module, not by this one, so the layout is designed in Reports > Template
+Builder and the finished PDF lands in Reports > Archive, where the existing
+viewing and sending pages pick it up. This page only chooses who gets one.
+Tick a year group to cover everyone in it, or move students across to cover
+only those. One student is a selection of one.
+Two transcript components are supplied in the module's templates/reports
+folder. Copy them into the Reports custom asset path, which is normally
+uploads/reports/templates, then use Scan on the Components page to register
+them. They then appear in the Template Builder under Academic Records.
+Transcript Setup now chooses which year groups a transcript covers. A school
+year is printed only if the student was in one of those year groups that year,
+so a high school transcript set to Grade 9 through Grade 12 no longer opens
+with the student's middle school years. Leaving every year group unticked
+covers everything, and the page says so.
+The courses come from class enrolment rather than from the grades, so a year
+in progress prints its courses with empty cells. This is what lets a
+transcript be printed at any point in the year with the most recent
+information on it.
+Added a Course Credits page, one school year at a time. Each course carries a
+credit for one term, and each course can be switched off so it never reaches a
+transcript. Switching off is how homerooms and pastoral courses stop taking up
+rows they will never fill. A course left on with no credit is still printed,
+which suits a course such as Theory of Knowledge that is studied and not
+graded.
+A course still being taught now shows the grade it is running at. Until a
+grade is stored, the transcript asks the Markbook for the weighted average of
+that class in that term, and turns the percentage into a grade using the
+ranges set on Transcript Setup. The credit that grade would earn is shown with
+it. Both are printed in italics with an asterisk, and a note at the foot of
+the table says they are work in progress and not yet part of the record. This
+is what lets a transcript be printed at any point in the year with current
+information on it, which the accreditation visit asks for.
+The weighted average is Gibbon's own. The Markbook module already applies the
+column weighting, the type weighting and the raw attainment setting, and
+already groups by term, so this asks it for the answer rather than working out
+a second one that could disagree with what teachers see.
+A grade is only worked out for a term that has started, in a school year that
+has not finished. A gap in a year that is over is left blank, because a
+missing grade there means it was never stored, not that the course is still
+running.
+A class with no completed marked work in the term shows nothing. Gibbon only
+counts Markbook columns that are marked complete and sit on the default
+assessment scale, so a class whose work is not yet complete stays blank rather
+than showing a misleading average.
+The Academic Grades box on the transcript is now built from the same
+percentage ranges, so the key printed on the page can never disagree with the
+grades worked out from it.
+The student picker on Generate Transcripts now refreshes as soon as a year
+group is ticked or unticked. Before, it only changed when Choose Students was
+pressed, so after a change of mind the picker still showed the old year group,
+and a refresh brought the old list straight back because the old choice was
+still in the address. Gibbon's picker only gathers the students moved across
+when a button is clicked, so they are gathered before the reload as well, and
+any still in the ticked year groups survive it.
+The list of students below the picker has a coloured row above its headings,
+styled the same as the bulk action bar on Gibbon's class enrolment page, with
+each control over the column it acts on: a Class of and a Graduation Date
+with an Apply to all button, and Download all over the Action column. The all
+or none boxes for GPA and for Print sit in the heading row beside their
+headings. Every Print box starts ticked, so after choosing a whole year group
+one or two can be unticked before the run. Draft or Final and Generate sit at
+the foot, always visible. Nothing is saved until Generate, which writes the
+row values for the ticked students and then runs them.
+Download all fetches every generated transcript for the listed students as
+one zip, one PDF per student named after them, straight from the Reports
+archive. Each row also has the usual View and Download action buttons through
+the same archive, so the same access rules apply as for any other report.
+Added a View Transcripts action under View. It opens Reports > Archive by
+Report for the transcript report of the current school year. A sidebar link
+can only point inside its own module, so a small page makes the jump. With
+more than one transcript report it lists them instead.
+Course Credits lists the courses of the year groups a transcript covers, as
+chosen on Transcript Setup, because those are the only courses a transcript
+can print. A coloured row above the headings holds a filter on the course
+name and on year group, and a credit with an Apply to all button that writes
+it into every course the filter shows. The all or none box beside the Show on
+Transcript heading does the same for the tick boxes. Each row has its own
+credit box and tick box. Save at the foot writes every course listed.
+Added GPA. Each grade of a scale can carry a grade point value and a letter,
+set on Transcript Setup beside the credit share and the percentage range for
+that grade, so a school on a different scale enters its own conversion rather
+than inheriting this one. The columns are named Grade Points and Letter
+Grade, which is what American high schools call them. Grade points are what
+the GPA averages. GPA is printed only for students switched on for it
+on the Generate Transcripts page, because only those applying to American
+universities need it, and the choice is remembered per student. A switched on
+student gets a GPA column beside each grade and an overall GPA under the
+table. A grade with no points set is left out of the figure.
+The overall GPA has two methods, chosen on Transcript Setup. Credit weighted
+counts each grade in proportion to the credit it earned, which is the usual
+American convention, so a failed course that earned nothing does not pull the
+figure down. Simple mean counts every graded term once. A grade still in
+progress counts towards the figure and marks it with an asterisk.
+Fixed the transcript header, where the accreditation line wrapped and its
+second line ran into the school type line below it. mPDF does not keep
+paragraph spacing inside a table cell, so each line of that block now has its
+own spacing.
+Added a Grade Setup section to Transcript Setup. Each grade of a scale
+earns a share of the course credit, so a school sets its own pass mark rather
+than inheriting ours. A grade with no share set earns nothing. Stored grades
+keep the scale they were recorded on, so a transcript that mixes scales works
+as long as each scale has its shares set.
+The Grade Setup section opens on a scale that grades are actually stored
+on. It used to open on whichever scale sorted first by name, which at this
+school was ATL, a scale that has nothing to do with credit. The list now puts
+the scales in use at the top, under their own heading, and every other scale
+below them.
+Changing the scale now reloads the grades at once. Before, the grades only
+changed when the button was pressed, so the box could name one scale while the
+table below it still showed another.
+A student who moves class part way through a year gets a row for each class,
+each showing only the grades stored while they were in it. Where two classes
+share a course name, the class short name is added to tell them apart.
+Class of and the graduation date are worked out by counting the year groups
+the student still has ahead of them and reading the date from the school year
+they land in. Both can be overridden per student on the Generate Transcripts
+page, for a student who repeats a year, skips one, or leaves early.
+Graduation Date on the Generate Transcripts page is now the browser's own date
+field, the same as every other date field in Gibbon. It was a plain text box
+that only accepted YYYY-MM-DD, so a date typed the way the rest of Gibbon
+shows dates was rejected with "your inputs were invalid". A date entered in
+the school's own format is converted rather than refused.
+Fixed the Student Info for Transcript component, which printed a dash for
+Class of and for Graduation Date on every transcript. It read a student
+graduation field that does not exist in Gibbon, and its Class of sum only ran
+at a school whose year groups are named "Year 10" rather than "Grade 10". The
+replacement takes both values from this module instead.
+
 v0.3.01
 -------
 Fixed the CAT4 Import Mapping page, where the Non-Verbal field offered the KS3

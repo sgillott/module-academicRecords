@@ -2,6 +2,7 @@
 namespace Gibbon\Module\AcademicRecords\Domain;
 
 use PDO;
+use Gibbon\Contracts\Database\Connection;
 use Gibbon\Domain\QueryCriteria;
 use Gibbon\Domain\QueryableGateway;
 use Gibbon\Domain\Traits\TableAware;
@@ -12,6 +13,27 @@ class AcademicRecordsGateway extends QueryableGateway
 
     private static $tableName = 'gibbonReportingValue';
     private static $primaryKey = 'gibbonReportingValueID';
+
+    /**
+     * Index of the stored grade columns this module writes.
+     *
+     * @var StoredGradeGateway
+     */
+    private $storedGradeGateway;
+
+    /**
+     * The container shares one Connection, so index writes issued through
+     * the stored grade gateway join the transaction opened here.
+     *
+     * @param Connection         $db                 Shared database connection.
+     * @param StoredGradeGateway $storedGradeGateway Stored grade index.
+     */
+    public function __construct(Connection $db, StoredGradeGateway $storedGradeGateway)
+    {
+        parent::__construct($db);
+
+        $this->storedGradeGateway = $storedGradeGateway;
+    }
 
     /* ---------------------------------------------------------
        QUERY ELIGIBLE REPORTING GRADES (Step 2 + Dry Run)
@@ -198,6 +220,7 @@ class AcademicRecordsGateway extends QueryableGateway
                 'rc.name',
                 'rc.nameShort',
                 'rc.dateEnd',
+                'rc.gibbonSchoolYearID',
                 'sy.name AS schoolYearName',
             ])
             ->innerJoin('gibbonSchoolYear AS sy', 'sy.gibbonSchoolYearID = rc.gibbonSchoolYearID')
@@ -240,6 +263,39 @@ class AcademicRecordsGateway extends QueryableGateway
                 'summary' => ['eligibleRows' => 0],
             ];
         }
+
+        /* ---------------------------
+           Term
+
+           Stored grades are recorded against a school year term. Transcripts
+           read that term. The reporting cycle dates cannot supply it, because
+           a cycle often runs after the term it reports on has closed.
+        --------------------------- */
+
+        $schoolYearID = (string) ($cycle['gibbonSchoolYearID'] ?? '');
+        $termID = $this->resolveTermID($filters, $schoolYearID);
+
+        if ($termID === '') {
+            return [
+                'importSuccess' => true,
+                'buildSuccess' => false,
+                'databaseSuccess' => false,
+                'rows' => 0,
+                'rowerrors' => 1,
+                'errors' => 1,
+                'warnings' => 0,
+                'inserts' => 0,
+                'inserts_skipped' => 0,
+                'updates' => 0,
+                'updates_skipped' => 0,
+                'columnsToCreate' => 0,
+                'noChange' => 0,
+                'lastError' => 'Store as Term is required, and must be a term of the school year this reporting cycle belongs to.',
+                'summary' => ['eligibleRows' => 0],
+            ];
+        }
+
+        $termName = $this->getTermName($termID);
 
         $rows = $this->selectEligibleReportingGradesForDryRun($cycleID, $filters);
 
@@ -429,6 +485,19 @@ class AcademicRecordsGateway extends QueryableGateway
                     }
                 }
 
+                // Record the term this column belongs to, so transcripts can
+                // place it without reading the column name or the cycle dates.
+                if ($isLive && $columnID > 0) {
+                    $this->storedGradeGateway->saveIndex([
+                        'columnID' => $columnID,
+                        'schoolYearID' => $schoolYearID,
+                        'termID' => $termID,
+                        'cycleID' => $cycleID,
+                        'classID' => $classID,
+                        'actorID' => $actorID,
+                    ]);
+                }
+
                 foreach ($classData['students'] as $studentData) {
 
                     $studentID = (int) $studentData['studentID'];
@@ -528,6 +597,7 @@ class AcademicRecordsGateway extends QueryableGateway
                             'sourceDate' => $this->resolveSourceDate($sourceRow),
                             'targetColumnName' => $columnName,
                             'targetCompleteDate' => $completeDate,
+                            'targetTerm' => $termName,
                             'targetColumnConfig' => [
                                 'attainment' => $finalAttainmentEnabled ? 'Y' : 'N',
                                 'effort' => $finalEffortEnabled ? 'Y' : 'N',
@@ -601,6 +671,60 @@ class AcademicRecordsGateway extends QueryableGateway
 
         $val = $this->runSelect($select)->fetchColumn();
         return $val !== false ? (string) $val : null;
+    }
+
+    /**
+     * The chosen term, checked against the school year of the reporting cycle.
+     *
+     * @param array  $filters      Request values from the Store Grades wizard.
+     * @param string $schoolYearID The school year of the reporting cycle.
+     *
+     * @return string gibbonSchoolYearTermID, or an empty string when the
+     *                value is missing or belongs to another school year.
+     */
+    private function resolveTermID(array $filters, string $schoolYearID): string
+    {
+        $termID = trim((string) ($filters['gibbonSchoolYearTermID'] ?? ''));
+
+        if ($termID === '' || !ctype_digit($termID) || $schoolYearID === '') {
+            return '';
+        }
+
+        $sql = "SELECT gibbonSchoolYearTermID
+                FROM gibbonSchoolYearTerm
+                WHERE gibbonSchoolYearTermID = :termID
+                    AND gibbonSchoolYearID = :schoolYearID";
+
+        $data = [
+            'termID' => $termID,
+            'schoolYearID' => $schoolYearID,
+        ];
+
+        // Connection::selectOne returns the value itself for a one column
+        // query, and 0 when nothing matches.
+        $found = $this->db()->selectOne($sql, $data);
+
+        return !empty($found) ? (string) $found : '';
+    }
+
+    /**
+     * Readable name of a term, for the dry run diagnostics.
+     *
+     * @param string $termID gibbonSchoolYearTermID to read.
+     *
+     * @return string
+     */
+    private function getTermName(string $termID): string
+    {
+        $sql = "SELECT name
+                FROM gibbonSchoolYearTerm
+                WHERE gibbonSchoolYearTermID = :termID";
+
+        $data = ['termID' => $termID];
+
+        $name = $this->db()->selectOne($sql, $data);
+
+        return is_string($name) ? $name : '';
     }
 
     private function normalizeYearGroupID($id): string

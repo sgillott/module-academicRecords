@@ -5,6 +5,7 @@ use Gibbon\Forms\DatabaseFormFactory;
 use Gibbon\Services\Format;
 use Gibbon\Domain\Students\StudentGateway;
 use Gibbon\Domain\System\SettingGateway;
+use Gibbon\Module\AcademicRecords\Domain\StoredGradeGateway;
 
 require_once __DIR__ . '/moduleFunctions.php';
 
@@ -93,32 +94,6 @@ function flattenRequestArray(array $data): array
         $out[$k] = $v;
     }
     return $out;
-}
-
-function normalizeRequestList($value): array
-{
-    if (is_array($value)) {
-        return array_values(array_filter(array_map('strval', $value), function ($item) {
-            return trim($item) !== '';
-        }));
-    }
-
-    if ($value === null) {
-        return [];
-    }
-
-    $value = trim((string) $value);
-    if ($value === '') {
-        return [];
-    }
-
-    if (strpos($value, ',') !== false) {
-        return array_values(array_filter(array_map('trim', explode(',', $value)), function ($item) {
-            return $item !== '';
-        }));
-    }
-
-    return [$value];
 }
 
 function renderStoreExecutionResults($page, array $results): void
@@ -544,6 +519,13 @@ function initAcademicRecordsStoreStep1() {
     const cycleSelect = form.querySelector('select[name="gibbonReportingCycleID"]');
     if (cycleSelect) {
       cycleSelect.addEventListener('change', function () {
+        // Clear the term so the new cycle gets its own suggestion. Keeping the
+        // old value would hold Semester 1 while the cycle moved to Semester 2.
+        const termSelect = form.querySelector('select[name="gibbonSchoolYearTermID"]');
+        if (termSelect) {
+          termSelect.selectedIndex = -1;
+        }
+
         form.submit();
       });
     }
@@ -632,6 +614,49 @@ if ($step === 1) {
     $cycleID = $_GET['gibbonReportingCycleID'] ?? array_key_first($cycles);
 
     /* -----------------------------------------------------
+       Term
+
+       Transcripts read the term from the stored grade index, not from the
+       reporting cycle dates. A cycle commonly runs after its term closes.
+    ----------------------------------------------------- */
+
+    $storedGradeGateway = $container->get(StoredGradeGateway::class);
+
+    $terms = $storedGradeGateway->selectTermsByCycle((int) $cycleID);
+
+    $termOptions = [];
+    foreach ($terms as $term) {
+        $termOptions[(string) $term['gibbonSchoolYearTermID']] = (string) $term['name'];
+    }
+
+    if (empty($termOptions)) {
+        $termsURL = $session->get('absoluteURL')
+            . '/index.php?q=/modules/School Admin/schoolYearTerm_manage.php';
+
+        $page->addError(__('Store Grades cannot continue until the school year of this reporting cycle has terms.'));
+
+        echo '<div class="warning flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">';
+        echo '<div class="flex-1">';
+        echo __('Stored grades are recorded against a school year term, so transcripts can place them in the right column.<br />');
+        echo __('Add the terms for this school year, and then return to this page.');
+        echo '</div>';
+        echo '<div class="text-left sm:text-right sm:ml-auto">';
+        echo '<a class="rounded-md px-4 py-2 text-sm sm:leading-5 inline-block align-middle font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 border border-amber-600 bg-white hover:bg-amber-50 text-amber-900 no-underline" href="'
+            . htmlspecialchars($termsURL) . '">'
+            . __('Go to Manage School Year Terms')
+            . '</a>';
+        echo '</div>';
+        echo '</div>';
+        return;
+    }
+
+    $termID = normalizeSchoolYearTermID($_GET['gibbonSchoolYearTermID'] ?? '');
+
+    if ($termID === '' || !isset($termOptions[$termID])) {
+        $termID = $storedGradeGateway->suggestTermForCycle((int) $cycleID);
+    }
+
+    /* -----------------------------------------------------
        Year Groups
     ----------------------------------------------------- */
 
@@ -703,6 +728,18 @@ if ($step === 1) {
     $row->addSelect('gibbonReportingCycleID')
         ->fromArray($cycles)
         ->selected($cycleID)
+        ->required();
+
+    /* -----------------------------------------------------
+       Term
+    ----------------------------------------------------- */
+
+    $row = $form->addRow();
+    $row->addLabel('gibbonSchoolYearTermID', __('Store as Term'))
+        ->description(__('The term these grades belong to. Transcripts read this value, because a reporting cycle often runs after its term has closed. Check the suggestion before you continue.'));
+    $row->addSelect('gibbonSchoolYearTermID')
+        ->fromArray($termOptions)
+        ->selected($termID)
         ->required();
 
     /* -----------------------------------------------------

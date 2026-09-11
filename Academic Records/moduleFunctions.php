@@ -339,6 +339,62 @@ function normalizeYearGroupID($id): string
     return $id;
 }
 
+/**
+ * Read a request value that may arrive as an array, a list or a single value.
+ *
+ * Shared by every page that takes a set of IDs from a form or a query string.
+ *
+ * @param mixed $value Raw request value.
+ *
+ * @return array
+ */
+function normalizeRequestList($value): array
+{
+    if (is_array($value)) {
+        return array_values(array_filter(array_map('strval', $value), function ($item) {
+            return trim($item) !== '';
+        }));
+    }
+
+    if ($value === null) {
+        return [];
+    }
+
+    $value = trim((string) $value);
+    if ($value === '') {
+        return [];
+    }
+
+    if (strpos($value, ',') !== false) {
+        return array_values(array_filter(array_map('trim', explode(',', $value)), function ($item) {
+            return $item !== '';
+        }));
+    }
+
+    return [$value];
+}
+
+/**
+ * Pad a school year term ID to the width the database stores.
+ *
+ * Request values arrive without the leading zeros, so they do not match
+ * option keys read from gibbonSchoolYearTerm until they are padded.
+ *
+ * @param mixed $id Raw request value.
+ *
+ * @return string
+ */
+function normalizeSchoolYearTermID($id): string
+{
+    $id = trim((string) $id);
+
+    if ($id === '' || !ctype_digit($id)) {
+        return $id;
+    }
+
+    return strlen($id) >= 5 ? $id : str_pad($id, 5, '0', STR_PAD_LEFT);
+}
+
 function getSubjectsByYearGroups(
     $connection,
     array $yearGroupIDs,
