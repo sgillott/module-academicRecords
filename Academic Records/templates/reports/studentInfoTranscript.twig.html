@@ -6,26 +6,51 @@ icon: address-card.svg
 sources:
     student: Student
     transcript: 'Gibbon\Module\AcademicRecords\Sources\Transcript'
+config:
+    showPhoto:
+        label: Show Photo
+        type: yesno
+        default: Y
+    photoHeight:
+        label: Photo Height (mm)
+        type: number
+        default: 35
+    accreditedBy:
+        label: Accredited By
+        type: words
+        default: 'Middle States Association of Colleges & Schools'
+    schoolType:
+        label: School Type
+        type: words
+        default: 'Private EY1 - 12'
+    ceebCode:
+        label: CEEB Code
+        type: words
+        default: '734072'
+    programmesOffered:
+        label: Programmes Offered
+        type: words
+        default: 'IGCSE, IB Diploma and High School Diploma are offered'
+    extraText:
+        label: Extra Text
+        type: text
+        default:
 -->#}
 {#
     Copy this file into the Reports custom asset path, which is
     /uploads/reports/templates by default, then run Reports > Template Builder
     > Assets > Components > Scan.
 
-    This replaces an earlier version of the same header, which printed a dash
-    for Class of and for Graduation Date on every transcript:
+    Class of and Graduation Date come from the Academic Records transcript
+    source, which counts the year groups still ahead of the student and reads
+    the date from the school year they land in. A value entered on the
+    Generate Transcripts page overrides that, for a student who repeats, skips
+    or leaves early.
 
-      - student.expectedGraduationDate does not exist. The Reports Student
-        source returns a fixed column list and holds no graduation field.
-      - the Class of sum tested for year groups named "Year 10", so it never
-        ran at a school whose year groups are named "Grade 10".
-
-    Both values now come from the Academic Records transcript source, which
-    counts the year groups still ahead of the student and reads the date from
-    the school year they land in. A value entered on the Generate Transcripts
-    page overrides that, for a student who repeats, skips or leaves early.
-
-    The right hand block is school specific text. Edit it to suit your school.
+    The right hand block is school specific text. Each line is set on the
+    section in Template Builder > Edit Template > Edit Section, and a line
+    left empty is not printed. The defaults above only apply until the
+    section is edited.
 #}
 {{- stylesheet ? include(stylesheet) -}}
 
@@ -56,11 +81,13 @@ sources:
   }
 </style>
 
+{% set showPhoto = config.showPhoto|default('Y') == 'Y' and student.image_240 %}
+
 <table class="student-info" width="100%" cellspacing="0" cellpadding="0">
   <tr>
-    {% if student.image_240 %}
+    {% if showPhoto %}
       <td width="16%" style="text-align:center; vertical-align:top;">
-        <img src="{{ basePath }}/{{ student.image_240 }}" style="height:35mm; border:1px solid #ccc;">
+        <img src="{{ basePath }}/{{ student.image_240 }}" style="height:{{ config.photoHeight|default(35) }}mm; border:1px solid #ccc;">
       </td>
     {% endif %}
 
@@ -88,10 +115,30 @@ sources:
           </td>
 
           <td class="student-right">
-            <div>Accredited by: <strong>Middle States Association of Colleges &amp; Schools</strong></div>
-            <div>School Type: <strong>Private EY1 &ndash; 12</strong>
-               &nbsp;&nbsp;&nbsp; CEEB Code: <strong>734072</strong></div>
-            <div><strong>iGCSE, IB Diploma and High School Diploma</strong> are offered</div>
+            {# A section added before this version has no value for these, so
+               the default is used. A value cleared on the section stays
+               hidden. #}
+            {% if config.accreditedBy is not empty or config.accreditedBy is not defined %}
+              <div>Accredited by: <strong>{{ config.accreditedBy|default('Middle States Association of Colleges & Schools') }}</strong></div>
+            {% endif %}
+
+            {% set schoolType = config.schoolType is defined ? config.schoolType : 'Private EY1 - 12' %}
+            {% set ceebCode = config.ceebCode is defined ? config.ceebCode : '734072' %}
+            {% if schoolType is not empty or ceebCode is not empty %}
+              <div>
+                {% if schoolType is not empty %}School Type: <strong>{{ schoolType }}</strong>{% endif %}
+                {% if schoolType is not empty and ceebCode is not empty %}&nbsp;&nbsp;&nbsp;{% endif %}
+                {% if ceebCode is not empty %}CEEB Code: <strong>{{ ceebCode }}</strong>{% endif %}
+              </div>
+            {% endif %}
+
+            {% if config.programmesOffered is not empty or config.programmesOffered is not defined %}
+              <div><strong>{{ config.programmesOffered|default('IGCSE, IB Diploma and High School Diploma are offered') }}</strong></div>
+            {% endif %}
+
+            {% if config.extraText is not empty %}
+              <div>{{ config.extraText|nl2br }}</div>
+            {% endif %}
           </td>
         </tr>
       </table>

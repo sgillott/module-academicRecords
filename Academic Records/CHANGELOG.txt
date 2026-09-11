@@ -1,6 +1,35 @@
 CHANGELOG
 =========
 
+v0.4.01
+-------
+The Student Info for Transcript component can now be set up from the Edit
+Section page in the Template Builder, the same as the components that come
+with the Reports module. The student photo can be switched off, its height
+set, and each line of the right hand block is its own field: accredited by,
+school type, CEEB code, the programmes offered, and a free text line. A line
+left empty is not printed. Before, that text was written into the file and
+every school had to edit it by hand.
+Added a Transcript - Watermark component. It prints an image faded into the
+page under the grade table, with the image, opacity, width and position set
+on the section. With no image chosen the school logo is used. It must sit
+above the Transcript - Academic Record section in the template, because each
+section is drawn in turn and the one drawn later lands on top.
+Added a Transcript - Signature component, a signature line at the right of
+the page with the date printed over its own line, as on the transcript. The
+signatory name and title, the signature height and whether to print the date
+are set on the section. The image field is Principal Signature / Stamp,
+because the signature and the school stamp are supplied as one image. A draft
+transcript prints DRAFT in its place.
+Added a Transcript - Footer component with the school name, address, website,
+phone and email on one line under a rule, joined by a separator of your
+choice. Gibbon does not hold an address or phone number for the school, so
+they are typed on the section. Empty parts are skipped.
+Copy all four files from the module's templates/reports folder into the
+Reports custom asset path and Scan, as before. The Student Info section
+already in a template keeps working and gets the new fields the next time it
+is edited.
+
 v0.4.00
 -------
 Store Grades now asks which term the grades belong to, and records the answer

@@ -243,18 +243,18 @@ $hasAnyArchive = false;
 // Separate borders, so the coloured row can round its top corners.
 $html = '<table class="w-full colorOddEven" cellspacing="0" style="border-collapse: separate; border-spacing: 0;">';
 
-// The boxes are the same widths as the ones in the rows beneath them.
+// The boxes are the same widths as the ones in the rows beneath them. The
+// date cell spans Graduation Date, GPA and Last Generated, so the row does
+// not force those columns apart on a narrow screen.
 $html .= '<tr>';
-$html .= '<td class="' . $barCell . ' rounded-tl-md"></td>';
-$html .= '<td class="' . $barCell . '"></td>';
+$html .= '<td colspan="2" class="' . $barCell . ' rounded-tl-md"></td>';
 $html .= '<td class="' . $barCell . '"><input type="number" id="applyGraduationYear" class="' . $inputClass . ' w-24" min="1900" max="2200" step="1" autocomplete="off" placeholder="' . __('Class of') . '"/></td>';
-$html .= '<td class="' . $barCell . ' whitespace-nowrap"><div class="flex items-center gap-2">'
+$html .= '<td colspan="3" class="' . $barCell . '"><div class="flex items-center gap-2">'
     . '<input type="date" id="applyGraduationDate" class="' . $inputClass . ' w-40" autocomplete="off"/>'
     . '<button type="button" id="applyAll" class="' . $buttonClass . '">' . __('Apply to all') . '</button>'
     . '</div></td>';
-$html .= '<td class="' . $barCell . '"></td>';
-$html .= '<td class="' . $barCell . '"></td>';
-$html .= '<td class="' . $barCell . '"><button type="submit" formaction="' . htmlspecialchars($downloadURL) . '" id="downloadAll" class="' . $buttonClass . '">' . __('Download all') . '</button></td>';
+$html .= '<td class="' . $barCell . '"><button type="submit" formaction="' . htmlspecialchars($downloadURL) . '" id="downloadAll" class="' . $buttonClass . ' inline-flex items-center gap-1">'
+    . icon('solid', 'download', 'size-5') . __('Download all') . '</button></td>';
 $html .= '<td class="' . $barCell . ' rounded-tr-md"></td>';
 $html .= '</tr>';
 
@@ -312,8 +312,10 @@ foreach ($rows as $row) {
     if (!empty($archive)) {
         $hasAnyArchive = true;
 
+        // Icon only. The label becomes the hover title.
         $view = (new Action('view', __('View')))
             ->directLink()
+            ->displayLabel(false)
             ->addParam('action', 'view')
             ->addParam('gibbonPersonID', $row['personID'])
             ->addParam('gibbonReportArchiveEntryID', $archive['gibbonReportArchiveEntryID'])
@@ -321,6 +323,7 @@ foreach ($rows as $row) {
 
         $download = (new Action('download', __('Download')))
             ->directLink()
+            ->displayLabel(false)
             ->setIcon('download')
             ->addParam('gibbonPersonID', $row['personID'])
             ->addParam('gibbonReportArchiveEntryID', $archive['gibbonReportArchiveEntryID'])

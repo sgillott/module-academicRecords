@@ -1,0 +1,86 @@
+{#<!--
+name: Transcript - Signature
+category: Academic Records
+types: Body,Footer
+icon: signature.svg
+params:
+    height: 30
+config:
+    signatoryName:
+        label: Signatory Name
+        type: words
+        default:
+    signatoryTitle:
+        label: Signatory Title
+        type: words
+        default: Principal
+    signatureImage:
+        label: Principal Signature / Stamp
+        type: image
+    signatureHeight:
+        label: Signature Height (mm)
+        type: number
+        default: 16
+    showDate:
+        label: Show Date Printed
+        type: yesno
+        default: Y
+-->#}
+{#
+    Copy this file into the Reports custom asset path, which is
+    /uploads/reports/templates by default, then run Reports > Template Builder
+    > Assets > Components > Scan.
+
+    A signature line at the right of the page, as on the transcript: the
+    signature image over a line with the signatory under it, and the date the
+    transcript was printed over a second line with DATE under it. Add it as the
+    last Body section so it sits under the grades, or as a Footer.
+
+    Principal Signature / Stamp is one image that holds both the signature and
+    the school stamp. A draft transcript prints DRAFT in its place, the same as
+    the signature components in the Reports module.
+#}
+{{- stylesheet ? include(stylesheet) -}}
+
+<style>
+  .signature-block {
+      font-family: "DejaVu Sans", sans-serif;
+      font-size: 7.5pt;
+  }
+  .signature-block td { vertical-align: bottom; }
+  .signature-block td.rule { border-bottom: 1pt solid #000; }
+  .signature-block td.label {
+      font-size: 7pt;
+      letter-spacing: 0.5pt;
+      text-align: center;
+      vertical-align: top;
+      padding-top: 2px;
+  }
+</style>
+
+{% set signatureHeight = config.signatureHeight|default(16) %}
+{% set showDate = config.showDate|default('Y') == 'Y' %}
+{% set signatory = [config.signatoryName|default(''), config.signatoryTitle|default('Principal')]|filter(v => v is not empty)|join(', ') %}
+
+<table class="signature-block" width="100%" cellspacing="0" cellpadding="0">
+  <tr>
+    <td style="width: 52%;"></td>
+    <td class="rule" style="width: 30%; height: {{ signatureHeight + 3 }}mm; text-align: center;">
+      {% if isDraft %}
+        <span style="color: #cccccc; font-size: 20pt; font-weight: bold;">DRAFT</span>
+      {% elseif config.signatureImage %}
+        <img src="{{ basePath }}/{{ config.signatureImage }}" style="height: {{ signatureHeight }}mm; width: auto;">
+      {% endif %}
+    </td>
+    <td style="width: 3%;"></td>
+    <td class="rule" style="width: 15%; text-align: center;">
+      {% if showDate %}{{ formatUsing('dateReadable', "now"|date('Y-m-d')) }}{% endif %}
+    </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td class="label">{{ signatory is not empty ? signatory : __('Signature')|upper }}</td>
+    <td></td>
+    <td class="label">{{ __('Date')|upper }}</td>
+  </tr>
+</table>

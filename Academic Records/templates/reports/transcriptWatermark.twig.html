@@ -1,0 +1,52 @@
+{#<!--
+name: Transcript - Watermark
+category: Academic Records
+types: Body
+icon: image.svg
+sources:
+    school: School
+config:
+    image:
+        label: Watermark Image
+        type: image
+    opacity:
+        label: Opacity (0 to 1)
+        type: number
+        default: 0.12
+    width:
+        label: Width (mm)
+        type: number
+        default: 120
+    left:
+        label: Left (mm from page edge)
+        type: number
+        default: 45
+    top:
+        label: Top (mm from page edge)
+        type: number
+        default: 110
+-->#}
+{#
+    Copy this file into the Reports custom asset path, which is
+    /uploads/reports/templates by default, then run Reports > Template Builder
+    > Assets > Components > Scan.
+
+    Place this section ABOVE the Transcript - Academic Record section in the
+    template. Each section is written to the page in turn, and mPDF draws an
+    absolutely positioned block at the end of the section it belongs to, so
+    anything written after this section is printed over the top of the image.
+    Put it below the grades and it prints on top of them instead.
+
+    The block takes up no room in the page flow, so the sections after it
+    start where they would have started without it. Left and Top are measured
+    from the corner of the physical page, not from the margin.
+
+    With no image chosen the school logo from System Settings is used.
+#}
+{% set image = config.image|default(school.organisationLogo) %}
+
+{% if image is not empty %}
+<div style="position: absolute; left: {{ config.left|default(45) }}mm; top: {{ config.top|default(110) }}mm; width: {{ config.width|default(120) }}mm;">
+  <img src="{{ basePath }}/{{ image }}" style="width: {{ config.width|default(120) }}mm; opacity: {{ config.opacity|default(0.12) }};">
+</div>
+{% endif %}

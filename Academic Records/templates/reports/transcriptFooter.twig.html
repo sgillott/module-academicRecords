@@ -1,0 +1,88 @@
+{#<!--
+name: Transcript - Footer
+category: Academic Records
+types: Footer
+icon: align-justify.svg
+sources:
+    school: School
+params:
+    height: 12
+config:
+    schoolName:
+        label: School Name
+        type: words
+        default:
+    addressLine:
+        label: Address
+        type: words
+        default:
+    website:
+        label: Website
+        type: words
+        default:
+    phone:
+        label: Phone
+        type: words
+        default:
+    email:
+        label: Email
+        type: words
+        default:
+    separator:
+        label: Separator
+        type: words
+        default: ' · '
+    fontSize:
+        label: Text Size (pt)
+        type: number
+        default: 7.5
+    dividerLine:
+        label: Divider Line
+        type: yesno
+        default: Y
+    pageNumber:
+        label: Page Number
+        type: yesno
+        default: N
+-->#}
+{#
+    Copy this file into the Reports custom asset path, which is
+    /uploads/reports/templates by default, then run Reports > Template Builder
+    > Assets > Components > Scan.
+
+    One line of school contact details at the foot of every page, under a
+    rule. The parts are printed in the order name, address, website, phone,
+    email, joined by the separator, and a part left empty is skipped. Gibbon
+    holds no address or phone number for the school, so those are typed here.
+    The school name starts as the organisation name from System Settings.
+#}
+{{- stylesheet ? include(stylesheet) -}}
+
+{# A section added before this component had a School Name field, and the
+   component preview, have no value at all, so the school name from System
+   Settings is used. A name cleared on the section stays out. #}
+{% set parts = [
+    config.schoolName is defined ? config.schoolName : school.organisationName,
+    config.addressLine|default(''),
+    config.website|default(''),
+    config.phone|default(''),
+    config.email|default(''),
+]|filter(v => v is not empty) %}
+
+<table width="100%" cellspacing="0" cellpadding="0" style="font-family: 'DejaVu Sans', sans-serif; font-size: {{ config.fontSize|default(7.5) }}pt;">
+  {% if config.dividerLine|default('Y') == 'Y' %}
+  <tr>
+    <td style="border-top: 0.8pt solid #000; font-size: 3px;">&nbsp;</td>
+  </tr>
+  {% endif %}
+  <tr>
+    <td style="text-align: center; line-height: 1.6;">
+      {{- parts|join(config.separator|default(' · ')) -}}
+    </td>
+  </tr>
+  {% if config.pageNumber|default('N') == 'Y' %}
+  <tr>
+    <td style="text-align: right; line-height: 1.6;">{{ __('Page') }} {{ pageNum }}</td>
+  </tr>
+  {% endif %}
+</table>

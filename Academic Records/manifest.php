@@ -6,7 +6,7 @@ $description = 'Stores reported grade scale outcomes as authoritative academic r
 $entryURL    = 'academicRecords_store.php';
 $type        = 'Additional';
 $category    = 'Assess';
-$version     = '0.4.00';
+$version     = '0.4.01';
 $author      = 'Steve Gillott';
 $url         = '';
 
