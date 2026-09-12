@@ -232,6 +232,85 @@ class StoredGradeGateway extends QueryableGateway
     }
 
     /**
+     * Which classes of a school year have a stored grade for which term.
+     *
+     * One row per class and term that has a stored column. Classes with no
+     * stored grade at all are not here; the page lists every class of the
+     * year and reads this to fill the cells, so the gaps show.
+     *
+     * @param string $schoolYearID The school year.
+     * @param string $type         The Internal Assessment Type this module owns.
+     *
+     * @return array Keyed by gibbonCourseClassID then gibbonSchoolYearTermID.
+     */
+    public function selectCoverageKeyed(string $schoolYearID, string $type): array
+    {
+        $sql = "SELECT sg.gibbonCourseClassID,
+                    sg.gibbonSchoolYearTermID,
+                    ic.gibbonInternalAssessmentColumnID,
+                    ic.name AS columnName,
+                    ic.completeDate,
+                    COUNT(ie.gibbonInternalAssessmentEntryID) AS entries,
+                    SUM(CASE WHEN ie.attainmentValue IS NOT NULL AND ie.attainmentValue <> '' THEN 1 ELSE 0 END) AS graded
+                FROM academicRecordsStoredGrade AS sg
+                JOIN gibbonInternalAssessmentColumn AS ic
+                    ON (ic.gibbonInternalAssessmentColumnID = sg.gibbonInternalAssessmentColumnID)
+                LEFT JOIN gibbonInternalAssessmentEntry AS ie
+                    ON (ie.gibbonInternalAssessmentColumnID = ic.gibbonInternalAssessmentColumnID)
+                WHERE sg.gibbonSchoolYearID = :schoolYearID
+                    AND ic.type = :type
+                GROUP BY sg.gibbonCourseClassID, sg.gibbonSchoolYearTermID, ic.gibbonInternalAssessmentColumnID, ic.name, ic.completeDate
+                ORDER BY ic.completeDate";
+
+        $data = [
+            'schoolYearID' => $schoolYearID,
+            'type' => $type,
+        ];
+
+        $keyed = [];
+
+        foreach ($this->db()->select($sql, $data)->fetchAll() as $row) {
+            // Rows arrive oldest first, so where a class and term somehow hold
+            // two stored columns the later one is the one shown, the same as
+            // on a transcript.
+            $keyed[(string) $row['gibbonCourseClassID']][(string) $row['gibbonSchoolYearTermID']] = $row;
+        }
+
+        return $keyed;
+    }
+
+    /**
+     * Every class of a school year with at least one student, and how many.
+     *
+     * @param string $schoolYearID The school year.
+     *
+     * @return array
+     */
+    public function selectClassesBySchoolYear(string $schoolYearID): array
+    {
+        $sql = "SELECT cc.gibbonCourseClassID,
+                    co.gibbonCourseID,
+                    co.name AS courseName,
+                    co.nameShort AS courseNameShort,
+                    cc.nameShort AS classNameShort,
+                    co.gibbonYearGroupIDList,
+                    COUNT(ccp.gibbonCourseClassPersonID) AS students,
+                    COALESCE(credit.showOnTranscript, 'Y') AS showOnTranscript
+                FROM gibbonCourseClass AS cc
+                JOIN gibbonCourse AS co ON (co.gibbonCourseID = cc.gibbonCourseID)
+                JOIN gibbonCourseClassPerson AS ccp
+                    ON (ccp.gibbonCourseClassID = cc.gibbonCourseClassID AND ccp.role = 'Student')
+                LEFT JOIN academicRecordsCourseCredit AS credit ON (credit.gibbonCourseID = co.gibbonCourseID)
+                WHERE co.gibbonSchoolYearID = :schoolYearID
+                GROUP BY cc.gibbonCourseClassID, co.gibbonCourseID, co.name, co.nameShort, cc.nameShort, co.gibbonYearGroupIDList, credit.showOnTranscript
+                ORDER BY co.name, cc.nameShort";
+
+        $data = ['schoolYearID' => $schoolYearID];
+
+        return $this->db()->select($sql, $data)->fetchAll();
+    }
+
+    /**
      * Stored grade columns that carry no term.
      *
      * These are grades stored before this index existed. The Transcript Setup

@@ -1,0 +1,134 @@
+{#
+The academic record of one student, on screen.
+
+Reads the same data as the transcript PDF, from RecordBuilder, and lays it
+out the same way: one block per school year, one row per course, one grade
+and credit per term, and a GPA column for a student switched on for it.
+#}
+
+{% set termCount = record.termLabels|length %}
+{% set perTerm = record.showGPA ? 3 : 2 %}
+{% set columnCount = termCount * perTerm + 1 %}
+
+<h2>{{ studentName }}{% if not isCurrent %} <span class="tag dull">{{ __(status) }}</span>{% endif %}</h2>
+
+<div class="record-summary">
+    {% if isCurrent %}
+        <div><span class="record-summary-label">{{ __('Year Group') }}</span> {{ yearGroup|default('-') }}</div>
+        <div><span class="record-summary-label">{{ __('Form Group') }}</span> {{ formGroup|default('-') }}</div>
+    {% else %}
+        <div><span class="record-summary-label">{{ __('Last Enrolment') }}</span> {{ lastSchoolYear|default('-') }}{% if yearGroup is not empty %}, {{ yearGroup }}{% endif %}{% if formGroup is not empty %} ({{ formGroup }}){% endif %}</div>
+    {% endif %}
+    <div><span class="record-summary-label">{{ __('Class of') }}</span> {{ record.classOf|default('-') }}</div>
+    <div><span class="record-summary-label">{{ __('Graduation Date') }}</span> {{ graduationDate|default('-') }}</div>
+    {% if record.showGPA %}
+        <div><span class="record-summary-label">{{ __('GPA') }}</span> {{ record.gpaOverall|default('-') }}{% if record.gpaProvisional %}*{% endif %}</div>
+    {% endif %}
+</div>
+
+{% if record.years is empty %}
+    <div class="warning">
+        {{ __('No school year with a class enrolment falls inside the year groups a transcript covers, so there is nothing to show for this student.') }}
+    </div>
+{% else %}
+    <table class="w-full colorOddEven record-table" cellspacing="0">
+        <tr class="head">
+            <th rowspan="2">{{ __('Courses') }}</th>
+            {% for label in record.termLabels %}
+                <th class="text-center" colspan="{{ perTerm }}">{{ label }}</th>
+            {% endfor %}
+        </tr>
+        <tr class="head">
+            {% for label in record.termLabels %}
+                <th class="text-center record-sub">{{ __('Grade') }}</th>
+                {% if record.showGPA %}<th class="text-center record-sub">{{ __('GPA') }}</th>{% endif %}
+                <th class="text-center record-sub">{{ __('Credit') }}</th>
+            {% endfor %}
+        </tr>
+
+        {% for year in record.years %}
+            <tr class="record-year">
+                <td colspan="{{ columnCount }}">
+                    {{ year.name }}{% if year.yearGroup is not empty %} <span class="record-year-group">{{ year.yearGroup }}</span>{% endif %}
+                </td>
+            </tr>
+
+            {% for course in year.courses %}
+                <tr>
+                    <td>
+                        {{ course.label }}
+                        {% if course.creditPerTerm is not empty %}
+                            <span class="record-credit-per-term">{{ course.creditPerTerm }} {{ __('per term') }}</span>
+                        {% endif %}
+                    </td>
+
+                    {% for index in 0..(termCount - 1) %}
+                        {% set cell = course.cells[index]|default(null) %}
+                        {% set mark = cell and cell.provisional ? ' record-provisional' : '' %}
+                        <td class="text-center{{ mark }}" {% if cell and cell.descriptor is not empty %}title="{{ cell.descriptor }}{% if cell.percent is not empty %} ({{ cell.percent }}%){% endif %}"{% endif %}>
+                            {%- if cell and cell.grade is not empty -%}
+                                {{ cell.grade }}{% if cell.provisional %}*{% endif %}
+                            {%- else -%}
+                                &nbsp;
+                            {%- endif -%}
+                        </td>
+                        {% if record.showGPA %}
+                            <td class="text-center{{ mark }}">
+                                {%- if cell and cell.gpa is not empty -%}
+                                    {{ cell.gpa }}
+                                {%- else -%}
+                                    &nbsp;
+                                {%- endif -%}
+                            </td>
+                        {% endif %}
+                        <td class="text-center{{ mark }}">
+                            {%- if cell and cell.credit is not empty -%}
+                                {{ cell.credit }}
+                            {%- else -%}
+                                &nbsp;
+                            {%- endif -%}
+                        </td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        {% endfor %}
+    </table>
+
+    {% if record.hasProvisional %}
+        <p class="text-xs italic mt-2">
+            * {{ __('Work in progress. This grade is the current class average for a term that has not finished, and is not yet part of the record.') }}
+        </p>
+    {% elseif not includeInterim %}
+        <p class="text-xs italic mt-2">
+            {{ __('Current marks are switched off, so a term still being taught shows only what has been stored.') }}
+        </p>
+    {% endif %}
+{% endif %}
+
+<h3>{{ __('Generated Transcripts') }}</h3>
+
+{% if archives is empty %}
+    <p class="text-xs italic">{{ __('No transcript has been generated for this student yet.') }}</p>
+{% else %}
+    <table class="w-full colorOddEven" cellspacing="0">
+        <tr class="head">
+            <th>{{ __('Report') }}</th>
+            <th>{{ __('School Year') }}</th>
+            <th>{{ __('Status') }}</th>
+            <th>{{ __('Generated') }}</th>
+            <th>{{ __('Action') }}</th>
+        </tr>
+        {% for archive in archives %}
+            <tr>
+                <td>{{ archive.reportName }}</td>
+                <td>{{ archive.schoolYearName }}</td>
+                <td><span class="tag {{ archive.status == 'Final' ? 'success' : 'dull' }}">{{ __(archive.status) }}</span></td>
+                <td>{{ archive.generated }}</td>
+                <td>
+                    <a href="{{ archive.viewURL }}" target="_blank" class="mr-3">{{ __('View') }}</a>
+                    <a href="{{ archive.downloadURL }}">{{ __('Download') }}</a>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+{% endif %}

@@ -1,8 +1,42 @@
 CHANGELOG
 =========
 
-v0.5.00
+v0.6.00
 -------
+View Academic Records now does something. Choose a student and the page
+shows the record a transcript would print: each school year the transcript
+covers, each course from class enrolment, and the stored grade and credit
+for every term, with Class of, the graduation date and the GPA where the
+student is switched on for it. It is built by the same code as the
+transcript PDF, so the screen and the paper can never disagree. A Current
+Marks switch, on by default, fills a term still being taught from the
+Markbook, marked with an asterisk, the same as on the PDF. The transcripts
+already generated for the student are listed underneath with View and
+Download through the Reports archive. No PDF is made here.
+The student is chosen the same way as on Manage Behaviour Records: a
+searchable student box, then a form group and a year group to narrow it,
+and Clear Filters. The box lists every student the school has ever
+enrolled, not only this year's, because a record is most often wanted after
+the student has graduated or left. Current students show their form group;
+former students show the school year they were last enrolled in, and sit
+under their own heading. The form group and year group filters read each
+student's most recent enrolment, so choosing Grade 12 offers this year's
+Grade 12 and the graduates whose last year was Grade 12.
+The page comes as two actions, the way View Markbook does. View Academic
+Records_all shows any student and goes to administrators and support staff.
+View Academic Records_my shows only the students in a class the user
+teaches this year or a form group they tutor, and goes to teachers. A
+school that wants a teacher to see everyone gives that role the _all
+action. On an existing install the old action becomes _all, teachers are
+moved to _my, and the two can be changed on Manage Permissions as usual.
+Added Stored Grade Coverage under Manage. It is the check to make before a
+transcript run: every class of a school year with students in it, one
+column per term, and in each cell how many of the class have a stored grade
+for that term and when the column was completed. A term that has started
+and has nothing stored is marked, a term not yet begun is greyed, and a
+line at the top counts the classes with a gap. The list can be narrowed to
+one year group, and courses switched off for transcripts are hidden unless
+asked for, because a gap in them does not matter.
 Store Grades and CAT4 Import are much faster on a full file. The dry run
 used to read the database once for every class and again for every student,
 so a cycle of two thousand grades took over a thousand queries. It now reads

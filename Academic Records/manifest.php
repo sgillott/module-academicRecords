@@ -6,7 +6,7 @@ $description = 'Stores reported grade scale outcomes as authoritative academic r
 $entryURL    = 'academicRecords_store.php';
 $type        = 'Additional';
 $category    = 'Assess';
-$version     = '0.5.00';
+$version     = '0.6.00';
 $author      = 'Steve Gillott';
 $url         = '';
 
@@ -225,19 +225,62 @@ $actionRows = [
     ],
 
     [
-        'name'                      => 'View Academic Records',
+        'name'                      => 'Stored Grade Coverage',
         'precedence'                => '1',
+        'category'                  => 'Manage',
+        'description'               => 'Shows which classes have a stored grade for each term of a school year.',
+        'URLList'                   => 'academicRecords_coverage.php',
+        'entryURL'                  => 'academicRecords_coverage.php',
+        'entrySidebar'              => 'Y',
+        'menuShow'                  => 'Y',
+        'defaultPermissionAdmin'    => 'Y',
+        'defaultPermissionTeacher'  => 'N',
+        'defaultPermissionStudent'  => 'N',
+        'defaultPermissionParent'   => 'N',
+        'defaultPermissionSupport'  => 'Y',
+        'categoryPermissionStaff'   => 'Y',
+        'categoryPermissionStudent' => 'N',
+        'categoryPermissionParent'  => 'N',
+        'categoryPermissionOther'   => 'N',
+    ],
+
+    // Two actions share the view page. The higher precedence wins where a
+    // role holds both, the same as View Markbook_allClassesAllData and
+    // View Markbook_myClasses in core.
+    [
+        'name'                      => 'View Academic Records_all',
+        'precedence'                => '2',
         'category'                  => 'View',
-        'description'               => 'Allows the user to view stored academic records for students.',
+        'description'               => 'View the academic record of any student.',
         'URLList'                   => 'academicRecords_view.php',
         'entryURL'                  => 'academicRecords_view.php',
         'entrySidebar'              => 'Y',
         'menuShow'                  => 'Y',
         'defaultPermissionAdmin'    => 'Y',
-        'defaultPermissionTeacher'  => 'Y',
+        'defaultPermissionTeacher'  => 'N',
         'defaultPermissionStudent'  => 'N',
         'defaultPermissionParent'   => 'N',
         'defaultPermissionSupport'  => 'Y',
+        'categoryPermissionStaff'   => 'Y',
+        'categoryPermissionStudent' => 'N',
+        'categoryPermissionParent'  => 'N',
+        'categoryPermissionOther'   => 'N',
+    ],
+
+    [
+        'name'                      => 'View Academic Records_my',
+        'precedence'                => '1',
+        'category'                  => 'View',
+        'description'               => 'View the academic record of a student in a class the user teaches or a form group the user tutors.',
+        'URLList'                   => 'academicRecords_view.php',
+        'entryURL'                  => 'academicRecords_view.php',
+        'entrySidebar'              => 'Y',
+        'menuShow'                  => 'Y',
+        'defaultPermissionAdmin'    => 'N',
+        'defaultPermissionTeacher'  => 'Y',
+        'defaultPermissionStudent'  => 'N',
+        'defaultPermissionParent'   => 'N',
+        'defaultPermissionSupport'  => 'N',
         'categoryPermissionStaff'   => 'Y',
         'categoryPermissionStudent' => 'N',
         'categoryPermissionParent'  => 'N',

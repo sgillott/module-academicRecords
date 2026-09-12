@@ -247,3 +247,84 @@
   border: 2px solid #dc2626 !important;
   box-shadow: none !important;
 }
+
+/* -----------------------------------------------------
+   View Academic Records
+----------------------------------------------------- */
+
+.record-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.record-summary-label {
+  color: #6b7280;
+  margin-right: 0.25rem;
+}
+
+.record-table th.record-sub {
+  font-weight: normal;
+  font-size: 0.75rem;
+}
+
+.record-table tr.record-year td {
+  background: #e5e7eb;
+  font-weight: 600;
+}
+
+.record-year-group {
+  font-weight: normal;
+  color: #6b7280;
+  margin-left: 0.5rem;
+}
+
+.record-credit-per-term {
+  display: block;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.record-table td.record-provisional {
+  font-style: italic;
+  color: #6b7280;
+}
+
+/* -----------------------------------------------------
+   Stored Grade Coverage
+----------------------------------------------------- */
+
+.coverage-table td.coverage-stored {
+  background: #dcfce7;
+  text-align: center;
+}
+
+.coverage-table td.coverage-partial {
+  background: #fef9c3;
+  text-align: center;
+}
+
+.coverage-table td.coverage-missing {
+  background: #fee2e2;
+  text-align: center;
+  color: #991b1b;
+}
+
+.coverage-table td.coverage-future {
+  background: #f3f4f6;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.coverage-table tr.coverage-hidden td:first-child {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.coverage-detail {
+  display: block;
+  font-size: 0.7rem;
+  color: #6b7280;
+}

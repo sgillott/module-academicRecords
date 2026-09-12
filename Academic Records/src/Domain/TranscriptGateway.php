@@ -62,6 +62,118 @@ class TranscriptGateway extends QueryableGateway
     }
 
     /**
+     * One school year, to anchor a record on.
+     *
+     * @param string $gibbonSchoolYearID The school year.
+     *
+     * @return array Empty when it does not exist.
+     */
+    public function getSchoolYear(string $gibbonSchoolYearID): array
+    {
+        $sql = "SELECT gibbonSchoolYearID,
+                    name,
+                    sequenceNumber,
+                    firstDay,
+                    lastDay
+                FROM gibbonSchoolYear
+                WHERE gibbonSchoolYearID = :gibbonSchoolYearID";
+
+        $data = ['gibbonSchoolYearID' => $gibbonSchoolYearID];
+
+        $row = $this->db()->selectOne($sql, $data);
+
+        return is_array($row) ? $row : [];
+    }
+
+    /**
+     * Everyone who has ever been enrolled as a student, with their most
+     * recent enrolment, for the View Academic Records picker.
+     *
+     * A student who has left or graduated keeps a record, so they are listed
+     * with the year group and form group of their last year. A current
+     * student is one enrolled in the given school year with a Full status.
+     *
+     * @param string $schoolYearID The current school year.
+     *
+     * @return array Ordered by surname then preferred name.
+     */
+    public function selectStudentPickerRows(string $schoolYearID): array
+    {
+        $sql = "SELECT p.gibbonPersonID,
+                    p.preferredName,
+                    p.surname,
+                    p.username,
+                    p.status,
+                    se.gibbonSchoolYearID,
+                    sy.name AS schoolYearName,
+                    se.gibbonYearGroupID,
+                    yg.name AS yearGroupName,
+                    se.gibbonFormGroupID,
+                    fg.nameShort AS formGroup,
+                    (se.gibbonSchoolYearID = :schoolYearID AND p.status = 'Full') AS isCurrent
+                FROM gibbonPerson AS p
+                JOIN gibbonRole AS r ON (r.gibbonRoleID = p.gibbonRoleIDPrimary AND r.category = 'Student')
+                JOIN gibbonStudentEnrolment AS se ON (se.gibbonStudentEnrolmentID = (
+                    SELECT latest.gibbonStudentEnrolmentID
+                    FROM gibbonStudentEnrolment AS latest
+                    JOIN gibbonSchoolYear AS latestYear ON (latestYear.gibbonSchoolYearID = latest.gibbonSchoolYearID)
+                    WHERE latest.gibbonPersonID = p.gibbonPersonID
+                    ORDER BY latestYear.sequenceNumber DESC
+                    LIMIT 1))
+                JOIN gibbonSchoolYear AS sy ON (sy.gibbonSchoolYearID = se.gibbonSchoolYearID)
+                LEFT JOIN gibbonYearGroup AS yg ON (yg.gibbonYearGroupID = se.gibbonYearGroupID)
+                LEFT JOIN gibbonFormGroup AS fg ON (fg.gibbonFormGroupID = se.gibbonFormGroupID)
+                ORDER BY p.surname, p.preferredName";
+
+        $data = ['schoolYearID' => $schoolYearID];
+
+        return $this->db()->select($sql, $data)->fetchAll();
+    }
+
+    /**
+     * Students a member of staff may see under View Academic Records_my:
+     * those in a class they teach this year, including any who have since
+     * left the class, and those in a form group they tutor.
+     *
+     * @param string $staffID      The member of staff.
+     * @param string $schoolYearID The current school year.
+     *
+     * @return array gibbonPersonID values, as a keyed set.
+     */
+    public function selectMyStudentIDs(string $staffID, string $schoolYearID): array
+    {
+        $sql = "SELECT DISTINCT student.gibbonPersonID
+                FROM gibbonCourseClassPerson AS student
+                JOIN gibbonCourseClassPerson AS staff
+                    ON (staff.gibbonCourseClassID = student.gibbonCourseClassID)
+                JOIN gibbonCourseClass AS cc ON (cc.gibbonCourseClassID = student.gibbonCourseClassID)
+                JOIN gibbonCourse AS co ON (co.gibbonCourseID = cc.gibbonCourseID)
+                WHERE co.gibbonSchoolYearID = :schoolYearID
+                    AND staff.gibbonPersonID = :staffID
+                    AND staff.role IN ('Teacher', 'Assistant')
+                    AND student.role IN ('Student', 'Student - Left')
+                UNION
+                SELECT se.gibbonPersonID
+                FROM gibbonStudentEnrolment AS se
+                JOIN gibbonFormGroup AS fg ON (fg.gibbonFormGroupID = se.gibbonFormGroupID)
+                WHERE se.gibbonSchoolYearID = :schoolYearID
+                    AND :staffID IN (fg.gibbonPersonIDTutor, fg.gibbonPersonIDTutor2, fg.gibbonPersonIDTutor3)";
+
+        $data = [
+            'schoolYearID' => $schoolYearID,
+            'staffID' => $staffID,
+        ];
+
+        $keyed = [];
+
+        foreach ($this->db()->select($sql, $data)->fetchAll() as $row) {
+            $keyed[(string) $row['gibbonPersonID']] = true;
+        }
+
+        return $keyed;
+    }
+
+    /**
      * The person behind a student enrolment record.
      *
      * @param string $gibbonStudentEnrolmentID Enrolment the report runs on.
@@ -567,6 +679,39 @@ class TranscriptGateway extends QueryableGateway
         }
 
         return $keyed;
+    }
+
+    /**
+     * Every archived transcript of one student, across all school years,
+     * newest first.
+     *
+     * A transcript is any archived report built on a Student Enrolment
+     * template, the same test selectTranscriptReports() uses.
+     *
+     * @param string $personID The student.
+     *
+     * @return array
+     */
+    public function selectArchivedTranscriptsByPerson(string $personID): array
+    {
+        $sql = "SELECT rae.gibbonReportArchiveEntryID,
+                    rae.gibbonReportID,
+                    rae.status,
+                    rae.timestampModified,
+                    r.name AS reportName,
+                    sy.name AS schoolYearName
+                FROM gibbonReportArchiveEntry AS rae
+                JOIN gibbonReport AS r ON (r.gibbonReportID = rae.gibbonReportID)
+                JOIN gibbonReportTemplate AS rt ON (rt.gibbonReportTemplateID = r.gibbonReportTemplateID)
+                JOIN gibbonSchoolYear AS sy ON (sy.gibbonSchoolYearID = rae.gibbonSchoolYearID)
+                WHERE rae.gibbonPersonID = :personID
+                    AND rae.type = 'Single'
+                    AND rt.context = 'Student Enrolment'
+                ORDER BY rae.timestampModified DESC";
+
+        $data = ['personID' => $personID];
+
+        return $this->db()->select($sql, $data)->fetchAll();
     }
 
     /**
