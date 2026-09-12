@@ -1,11 +1,11 @@
 <?php
 
 use Gibbon\Forms\Form;
+use Gibbon\Module\AcademicRecords\CAT4\MappingRenderer;
+use Gibbon\Module\AcademicRecords\CAT4\MappingService;
 use Gibbon\Module\AcademicRecords\Domain\CAT4MappingGateway;
 
 require_once __DIR__.'/moduleFunctions.php';
-require_once __DIR__.'/includes/CAT4MappingService.php';
-require_once __DIR__.'/includes/CAT4MappingRenderer.php';
 
 if (!isActionAccessible($guid,$connection2,'/modules/Academic Records/academicRecords_cat4Mapping.php')) {
     $page->addError(__('You do not have access.'));
@@ -16,12 +16,11 @@ $page->breadcrumbs->add(__('CAT4 Import Mapping'));
 echo '<h2>'.__('CAT4 Import Mapping').'</h2>';
 
 $gateway = $container->get(CAT4MappingGateway::class);
-$mappingService = new CAT4MappingService();
+$mappingService = new MappingService();
 
 $assessments = $gateway->selectAssessmentsActive();
 
 $assessmentOptions = [];
-$assessmentNames = [];
 
 foreach ($assessments as $assessment) {
 
@@ -29,12 +28,26 @@ foreach ($assessments as $assessment) {
     $name = (string)$assessment['name'];
 
     $assessmentOptions[$id] = $name;
-    $assessmentNames[$id] = $name;
 }
 
-$cat4ID = isset($_GET['cat4ID']) ? (int)$_GET['cat4ID'] : 1;
-$gcseID = isset($_GET['gcseID']) ? (int)$_GET['gcseID'] : 2;
-$ibID   = isset($_GET['ibID']) ? (int)$_GET['ibID'] : 3;
+// Each section opens on the assessment whose name says what it is, or on
+// the next unused assessment where no name matches. Nothing here assumes
+// the IDs an install happens to have.
+$defaultAssessmentID = function (array $needles, int $fallbackIndex) use ($assessmentOptions): int {
+    foreach ($assessmentOptions as $id => $name) {
+        foreach ($needles as $needle) {
+            if (str_contains(strtolower($name), $needle)) {
+                return (int) $id;
+            }
+        }
+    }
+
+    return (int) (array_keys($assessmentOptions)[$fallbackIndex] ?? 0);
+};
+
+$cat4ID = isset($_GET['cat4ID']) ? (int) $_GET['cat4ID'] : $defaultAssessmentID(['cat4', 'cognitive abilities'], 0);
+$gcseID = isset($_GET['gcseID']) ? (int) $_GET['gcseID'] : $defaultAssessmentID(['gcse'], 1);
+$ibID   = isset($_GET['ibID']) ? (int) $_GET['ibID'] : $defaultAssessmentID(['ib diploma', 'ibdp', 'ib dp'], 2);
 
 $formSelect = Form::create(
     'assessment',
@@ -72,7 +85,7 @@ echo $formSelect->getOutput();
 
 $form = Form::create(
     'mapping',
-    $session->get('absoluteURL').'/index.php?q=/modules/Academic Records/academicRecords_cat4MappingProcess.php',
+    $session->get('absoluteURL').'/modules/Academic Records/academicRecords_cat4MappingProcess.php',
     'post'
 );
 
@@ -81,32 +94,32 @@ $form->addHiddenValue('cat4ID',$cat4ID);
 $form->addHiddenValue('gcseID',$gcseID);
 $form->addHiddenValue('ibID',$ibID);
 
-CAT4MappingRenderer::renderSection(
+MappingRenderer::renderSection(
     $form,
     $gateway,
     $mappingService,
     $cat4ID,
-    $assessmentNames[$cat4ID] ?? '',
+    $assessmentOptions[$cat4ID] ?? '',
     'CAT4 Fields',
     'cat4'
 );
 
-CAT4MappingRenderer::renderSection(
+MappingRenderer::renderSection(
     $form,
     $gateway,
     $mappingService,
     $gcseID,
-    $assessmentNames[$gcseID] ?? '',
+    $assessmentOptions[$gcseID] ?? '',
     'GCSE Fields',
     'gcse'
 );
 
-CAT4MappingRenderer::renderSection(
+MappingRenderer::renderSection(
     $form,
     $gateway,
     $mappingService,
     $ibID,
-    $assessmentNames[$ibID] ?? '',
+    $assessmentOptions[$ibID] ?? '',
     'IB Diploma Fields',
     'ib'
 );

@@ -18,6 +18,7 @@ use Gibbon\Forms\Form;
 use Gibbon\Services\Format;
 use Gibbon\Domain\System\SettingGateway;
 use Gibbon\Module\AcademicRecords\Domain\YearGroupMapGateway;
+use Gibbon\Module\AcademicRecords\Testwise\Year;
 
 require_once __DIR__ . '/moduleFunctions.php';
 
@@ -55,30 +56,13 @@ if (empty($yearGroups)) {
 
 $storedMap = $mapGateway->selectMapKeyed();
 
-$regionNames = testwiseRegionOptions();
+$regionNames = Year::regionOptions();
 $regionLabel = $regionNames[$region] ?? $region;
 
 echo Format::alert(
-    __('The region is {region}. The Suggested column is worked out from each year group\'s name. The Export As value is what the student export actually sends, so change any suggestion that is wrong. A row with no confirmed value is highlighted and falls back to the suggestion.', ['region' => '<b>' . htmlspecialchars($regionLabel) . '</b>']),
+    __('The region is {region}. Check every row before you save. ', ['region' => '<b>' . htmlspecialchars($regionLabel) . '</b>']),
     'message'
 );
-
-echo Format::alert(
-    '<b>' . __('Early years classes') . '</b><br/>'
-    . __('Early Years, Kindergarten, Nursery and Reception classes are not named on any year scale, so their year cannot be read from their name. They are placed by their position in the year group order instead, counting back from the first class that could be read.')
-    . '<br/><br/>'
-    . __('Use <b>Y0</b> for a Reception or Kindergarten class, which is the year before Y1. Where a school has more than one class before Y1, such as a Nursery and a Kindergarten, both are suggested as Y0 because there is no year below it. Change one of them only if GL Assessment have told you to.')
-    . '<br/><br/>'
-    . __('Check these rows carefully. Two classes suggested as the same year is normal for the earliest classes, but is a mistake anywhere else.'),
-    'message'
-);
-
-if ($region === TESTWISE_REGION_INTERNATIONAL) {
-    echo Format::alert(
-        __('International schools often number year groups on a different scale. Classes named as American grades are shifted by a year, so Grade 6 is suggested as Y7. Check every row before you save.'),
-        'warning'
-    );
-}
 
 $form = Form::create(
     'testwiseYearGroups',
@@ -86,7 +70,7 @@ $form = Form::create(
 );
 $form->addHiddenValue('address', $session->get('address'));
 
-$suggestions = testwiseSuggestYearMap($region, $yearGroups);
+$suggestions = Year::suggestYearMap($region, $yearGroups);
 
 $unconfirmed = 0;
 $html = '<table class="w-full colorOddEven" cellspacing="0">';

@@ -145,3 +145,11 @@ INSERT INTO `gibbonPermission` (`gibbonRoleID`, `gibbonActionID`) SELECT '001', 
 $count++;
 $sql[$count][0] = "0.4.01";
 $sql[$count][1] = "-- Report components only, nothing to update";
+
+// v0.5.00
+$count++;
+$sql[$count][0] = "0.5.00";
+$sql[$count][1] = "UPDATE `gibbonAction` SET `URLList`='academicRecords_store.php,academicRecords_store_ajax.php' WHERE `name`='Store Grades' AND `gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records');end
+UPDATE `gibbonAction` SET `URLList`='cat4_import.php' WHERE `name`='CAT4 Import' AND `gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records');end
+UPDATE `gibbonAction` SET `URLList`='academicRecords_settings.php,academicRecords_settingsProcess.php' WHERE `name`='Academic Records Settings' AND `gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records');end
+UPDATE `gibbonAction` SET `URLList`='academicRecords_cat4Mapping.php,academicRecords_cat4MappingProcess.php' WHERE `name`='CAT4 Import Settings' AND `gibbonModuleID`=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Academic Records');end";

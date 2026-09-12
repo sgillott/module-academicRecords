@@ -1,8 +1,10 @@
 <?php
 
+use Gibbon\Module\AcademicRecords\Domain\CAT4ImportGateway;
 use Gibbon\Module\AcademicRecords\Domain\CAT4MappingGateway;
 
-require_once __DIR__.'/moduleFunctions.php';
+require_once '../../gibbon.php';
+require_once __DIR__ . '/moduleFunctions.php';
 
 $cat4ID = (int)($_POST['cat4ID'] ?? 0);
 $gcseID = (int)($_POST['gcseID'] ?? 0);
@@ -75,7 +77,7 @@ function saveMapping(
     $studentIdentifierHeaderPattern = trim((string) ($studentIdentifierHeaderPatterns[$namespace] ?? ($existingMapping['studentIdentifierHeaderPattern'] ?? 'Student ID')));
     $dateHeaderPattern = trim((string) ($dateHeaderPatterns[$namespace] ?? ($existingMapping['dateHeaderPattern'] ?? 'Date of test')));
 
-    if (!in_array($studentMatchField, ['studentID', 'gibbonPersonID', 'username'], true)) {
+    if (!in_array($studentMatchField, CAT4ImportGateway::STUDENT_MATCH_FIELDS, true)) {
         $studentMatchField = 'studentID';
     }
 

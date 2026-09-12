@@ -31,8 +31,8 @@ require_once __DIR__ . '/moduleFunctions.php';
 
 $_POST = $container->get(Validator::class)->sanitize($_POST);
 
-$URL = $session->get('absoluteURL')
-    . '/index.php?q=/modules/Academic Records/academicRecords_transcripts.php';
+// Back to the same report and the same selection, so the list shows the result.
+$URL = transcriptsReturnURL($session->get('absoluteURL'), $_POST);
 
 if (!isActionAccessible($guid, $connection2, '/modules/Academic Records/academicRecords_transcripts.php')) {
     header("Location: {$URL}&return=error0");
@@ -46,15 +46,6 @@ $includeInterim = ($_POST['includeInterim'] ?? 'Y') === 'N' ? 'N' : 'Y';
 $graduationYears = is_array($_POST['graduationYear'] ?? null) ? $_POST['graduationYear'] : [];
 $graduationDates = is_array($_POST['graduationDate'] ?? null) ? $_POST['graduationDate'] : [];
 $gpaFlags = is_array($_POST['showGPA'] ?? null) ? $_POST['showGPA'] : [];
-
-// Back to the same report and the same selection, so the list shows the result.
-$URL .= '&gibbonReportID=' . rawurlencode($gibbonReportID);
-foreach (normalizeRequestList($_POST['gibbonYearGroupIDList'] ?? '') as $yearGroupID) {
-    $URL .= '&gibbonYearGroupIDList[]=' . rawurlencode($yearGroupID);
-}
-foreach (normalizeRequestList($_POST['studentIDs'] ?? '') as $studentID) {
-    $URL .= '&studentIDs[]=' . rawurlencode($studentID);
-}
 
 if ($gibbonReportID === '' || empty($personIDs)) {
     header("Location: {$URL}&return=error1");

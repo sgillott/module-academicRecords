@@ -20,10 +20,12 @@ namespace Gibbon\Module\AcademicRecords\Domain;
 
 use Gibbon\Domain\QueryableGateway;
 use Gibbon\Domain\Traits\TableAware;
+use Gibbon\Module\AcademicRecords\Domain\Traits\BindsInList;
 
 class TranscriptGateway extends QueryableGateway
 {
     use TableAware;
+    use BindsInList;
 
     private static $tableName = 'academicRecordsTranscriptStudent';
     private static $primaryKey = 'academicRecordsTranscriptStudentID';
@@ -149,7 +151,7 @@ class TranscriptGateway extends QueryableGateway
             return [];
         }
 
-        [$placeholders, $data] = $this->buildInClause($schoolYearIDs, 'yr');
+        [$placeholders, $data] = $this->inList($schoolYearIDs, 'yr');
 
         $sql = "SELECT gibbonSchoolYearTermID,
                     gibbonSchoolYearID,
@@ -183,7 +185,7 @@ class TranscriptGateway extends QueryableGateway
             return [];
         }
 
-        [$placeholders, $data] = $this->buildInClause($schoolYearIDs, 'yr');
+        [$placeholders, $data] = $this->inList($schoolYearIDs, 'yr');
         $data['personID'] = $personID;
 
         $sql = "SELECT co.gibbonSchoolYearID,
@@ -223,7 +225,7 @@ class TranscriptGateway extends QueryableGateway
             return [];
         }
 
-        [$placeholders, $data] = $this->buildInClause($schoolYearIDs, 'yr');
+        [$placeholders, $data] = $this->inList($schoolYearIDs, 'yr');
         $data['personID'] = $personID;
 
         $sql = "SELECT sg.gibbonSchoolYearID,
@@ -365,7 +367,7 @@ class TranscriptGateway extends QueryableGateway
             return [];
         }
 
-        [$placeholders, $data] = $this->buildInClause($personIDs, 'p');
+        [$placeholders, $data] = $this->inList($personIDs, 'p');
 
         $sql = "SELECT gibbonPersonID,
                     graduationYear,
@@ -433,23 +435,6 @@ class TranscriptGateway extends QueryableGateway
         $data = ['personID' => $personID];
 
         return $this->db()->statement($sql, $data) !== false;
-    }
-
-    /**
-     * Every year group, in teaching order, for the selection form.
-     *
-     * @return array
-     */
-    public function selectYearGroupOptions(): array
-    {
-        $sql = "SELECT gibbonYearGroupID,
-                    name,
-                    nameShort,
-                    sequenceNumber
-                FROM gibbonYearGroup
-                ORDER BY sequenceNumber, name";
-
-        return $this->db()->select($sql)->fetchAll();
     }
 
     /**
@@ -525,7 +510,7 @@ class TranscriptGateway extends QueryableGateway
             return [];
         }
 
-        [$placeholders, $data] = $this->buildInClause($personIDs, 'p');
+        [$placeholders, $data] = $this->inList($personIDs, 'p');
         $data['schoolYearID'] = $schoolYearID;
 
         $sql = "SELECT se.gibbonPersonID,
@@ -560,7 +545,7 @@ class TranscriptGateway extends QueryableGateway
             return [];
         }
 
-        [$placeholders, $data] = $this->buildInClause($personIDs, 'p');
+        [$placeholders, $data] = $this->inList($personIDs, 'p');
         $data['gibbonReportID'] = $gibbonReportID;
 
         $sql = "SELECT gibbonReportArchiveEntryID,
@@ -603,27 +588,5 @@ class TranscriptGateway extends QueryableGateway
         $value = $this->db()->selectOne($sql, $data);
 
         return is_string($value) ? $value : '';
-    }
-
-    /**
-     * Build a bound IN clause, because the list length varies per call.
-     *
-     * @param array  $values Values to bind.
-     * @param string $prefix Placeholder prefix, unique within one statement.
-     *
-     * @return array The placeholder string, then the bindings.
-     */
-    private function buildInClause(array $values, string $prefix): array
-    {
-        $placeholders = [];
-        $data = [];
-
-        foreach (array_values($values) as $index => $value) {
-            $key = $prefix . $index;
-            $placeholders[] = ':' . $key;
-            $data[$key] = $value;
-        }
-
-        return [implode(', ', $placeholders), $data];
     }
 }

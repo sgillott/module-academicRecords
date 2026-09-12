@@ -1,6 +1,58 @@
 CHANGELOG
 =========
 
+v0.5.00
+-------
+Store Grades and CAT4 Import are much faster on a full file. The dry run
+used to read the database once for every class and again for every student,
+so a cycle of two thousand grades took over a thousand queries. It now reads
+the existing columns and entries in two queries and plans from memory, and
+the live run writes only what the plan says. On this school's data that is
+about a dozen queries and a twentieth of a second instead of a second and a
+half. CAT4 Import does the same: the students named in the file, the grades
+of every mapped scale and the assessment rows already on those dates are
+read up front, so a hundred row file takes fifteen queries instead of
+several thousand. The result of each run is unchanged; only the number of
+trips to the database is.
+The Internal Assessment column written by Store Grades was being found by a
+second read after the insert, on the belief that Gibbon could not report the
+new row's ID. It can, and the second read is gone. The same fix applies to
+the CAT4 mapping tables.
+Which run is the live one is now passed to the store as a plain yes or no,
+rather than read from the step number the form happened to post.
+The module's own code has moved into the src folder that Gibbon loads on
+its own, so nothing is pulled in by hand any more. The CAT4 importer, the
+mapping page's matching and drawing, the GL Assessment export, the Testwise
+year rules and the settings backup each have their own class. The page
+helper file now holds only the fragments the pages share. The two settings
+process pages now run the same way as the rest of the module's process pages.
+The CAT4 Import Mapping page used to open on whichever assessments had IDs
+1, 2 and 3. It now opens on the assessments whose names say CAT4, GCSE and
+IB Diploma, and on the first three active assessments where no name matches.
+Removed a script file that no page loaded, and an unfinished branch of the
+Store Grades filter refresh that would have failed if it had ever been
+called.
+Backup and Restore now covers the Grade Setup of every scale and the credit
+and transcript switch of every course. Scales are matched on their name and
+courses on their school year and short name, so a backup restores onto
+another install the same way the year group mappings do. A scale or course
+in the file that does not exist here is skipped. As before, a block missing
+from the file leaves that table alone. The per student transcript overrides
+and the stored grade index stay out, because they only mean something on the
+install that wrote them.
+Every gateway that builds a bound IN list now shares one copy of that code,
+and the year group list read by four pages comes from one place rather than
+two. The coloured bulk action row on Generate Transcripts and Course Credits
+takes its classes from one helper.
+The script that refreshes the filters on Store Grades step 1 now lives in
+its own file, js/store.js, which that page adds with the file's own
+modification time as the cache key. It is not in js/module.js, because
+Gibbon keys that file on the installed module version, which only changes
+when the module update is run, so a browser would keep an old copy until
+then. The dry run also no longer counts the whole reporting table on each
+run, which it did as a side effect of reading its rows through the paged
+query that the preview table uses.
+
 v0.4.01
 -------
 The Student Info for Transcript component can now be set up from the Edit

@@ -1,12 +1,28 @@
 <?php
+/**
+ * Suggests a spreadsheet column for each External Assessment field.
+ *
+ * A saved mapping always wins. Otherwise the field name is matched against
+ * the known headings for the assessment type, with a confidence level so the
+ * page can show which suggestions need checking.
+ *
+ * @category Module
+ * @package  Gibbon\Module\AcademicRecords
+ * @author   Steve Gillott
+ * @license  https://www.gnu.org/licenses/gpl-3.0.html GNU GPL v3
+ * @version  GIT: $Id$
+ * @link     https://gibbonedu.org
+ */
 
-class CAT4MappingService
+namespace Gibbon\Module\AcademicRecords\CAT4;
+
+class MappingService
 {
     private array $headerSets;
 
     public function __construct()
     {
-        $this->headerSets = require __DIR__ . '/CAT4HeaderSets.php';
+        $this->headerSets = HeaderSets::all();
     }
 
     public function buildHeaderOptionsForAssessment(string $type): array

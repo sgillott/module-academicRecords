@@ -3,6 +3,7 @@
 use Gibbon\Forms\Form;
 use Gibbon\Services\Format;
 use Gibbon\Domain\System\SettingGateway;
+use Gibbon\Module\AcademicRecords\Testwise\Year;
 
 require_once __DIR__ . '/moduleFunctions.php';
 
@@ -50,12 +51,12 @@ $gibbonCountry = (string) ($settingGateway->getSettingByScope('System', 'country
 $testwiseRegion = trim((string) ($settingGateway->getSettingByScope('Academic Records', 'testwiseRegion', true)['value'] ?? ''));
 
 if ($testwiseRegion === '') {
-    $testwiseRegion = testwiseDefaultRegion($gibbonCountry);
+    $testwiseRegion = Year::defaultRegion($gibbonCountry);
 }
 
 $form = Form::create(
     'academicRecordsSettings',
-    $session->get('absoluteURL') . '/index.php?q=/modules/Academic Records/academicRecords_settingsProcess.php'
+    $session->get('absoluteURL') . '/modules/Academic Records/academicRecords_settingsProcess.php'
 );
 $form->addHiddenValue('address', $session->get('address'));
 
@@ -65,18 +66,11 @@ if (!$hasRecommendedFinalGradeType) {
     $formalAssessmentSettingsURL = $session->get('absoluteURL')
         . '/index.php?q=%2Fmodules%2FSchool+Admin%2FformalAssessmentSettings.php';
 
-    $form->addRow()->addContent(
-        '<div class="warning flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">'
-        . '<div class="flex-1">'
-        . __('It is recommended that you create an Internal Assessment Type called \'Final Grade\'.')
-        . '</div>'
-        . '<div class="text-left sm:text-right sm:ml-auto">'
-        . '<a class="rounded-md px-4 py-2 text-sm sm:leading-5 inline-block align-middle font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 border border-amber-600 bg-white hover:bg-amber-50 text-amber-900 no-underline" href="' . htmlspecialchars($formalAssessmentSettingsURL) . '">'
-        . __('Open Formal Assessment Settings')
-        . '</a>'
-        . '</div>'
-        . '</div>'
-    );
+    $form->addRow()->addContent(academicRecordsSetupWarning(
+        __('It is recommended that you create an Internal Assessment Type called \'Final Grade\'.'),
+        __('Open Formal Assessment Settings'),
+        $formalAssessmentSettingsURL
+    ));
 }
 
 $row = $form->addRow();
@@ -109,7 +103,7 @@ $row = $form->addRow();
 $row->addLabel('testwiseRegion', __('Testwise Region'))
     ->description(__('England uses a "Y" prefix, Scotland uses "P" and "S", Northern Ireland uses "P" and "Y", and Republic of Ireland uses "Y".'));
 $row->addSelect('testwiseRegion')
-    ->fromArray(testwiseRegionOptions())
+    ->fromArray(Year::regionOptions())
     ->required()
     ->selected($testwiseRegion);
 

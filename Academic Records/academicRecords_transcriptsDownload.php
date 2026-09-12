@@ -24,8 +24,7 @@ require_once __DIR__ . '/moduleFunctions.php';
 
 $_POST = $container->get(Validator::class)->sanitize($_POST);
 
-$URL = $session->get('absoluteURL')
-    . '/index.php?q=/modules/Academic Records/academicRecords_transcripts.php';
+$URL = transcriptsReturnURL($session->get('absoluteURL'), $_POST);
 
 if (!isActionAccessible($guid, $connection2, '/modules/Academic Records/academicRecords_transcripts.php')) {
     header("Location: {$URL}&return=error0");
@@ -34,14 +33,6 @@ if (!isActionAccessible($guid, $connection2, '/modules/Academic Records/academic
 
 $gibbonReportID = (string) ($_POST['gibbonReportID'] ?? '');
 $personIDs = normalizeRequestList($_POST['gibbonPersonID'] ?? []);
-
-$URL .= '&gibbonReportID=' . rawurlencode($gibbonReportID);
-foreach (normalizeRequestList($_POST['gibbonYearGroupIDList'] ?? '') as $yearGroupID) {
-    $URL .= '&gibbonYearGroupIDList[]=' . rawurlencode($yearGroupID);
-}
-foreach (normalizeRequestList($_POST['studentIDs'] ?? '') as $studentID) {
-    $URL .= '&studentIDs[]=' . rawurlencode($studentID);
-}
 
 if ($gibbonReportID === '' || empty($personIDs) || !class_exists('ZipArchive')) {
     header("Location: {$URL}&return=error1");

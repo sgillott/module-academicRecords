@@ -26,5 +26,5 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * $coreVersion is the lowest Gibbon core version this module runs on.
  */
-$moduleVersion = '0.4.01';
+$moduleVersion = '0.5.00';
 $coreVersion   = '30.0.00';

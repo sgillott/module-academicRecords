@@ -5,9 +5,58 @@ use Gibbon\Forms\Form;
 use Gibbon\Services\Format;
 use Gibbon\Tables\DataTable;
 use Gibbon\Domain\DataSet;
+use Gibbon\Module\AcademicRecords\CAT4\Importer as CAT4Importer;
 use Gibbon\Module\AcademicRecords\Domain\CAT4MappingGateway;
 
 require __DIR__ . '/moduleFunctions.php';
+
+/**
+ * Split CSV text into rows.
+ *
+ * @param string $csvData The file contents.
+ *
+ * @return array One array per line, including the heading row.
+ */
+function parseCAT4Csv(string $csvData): array
+{
+    $rows = [];
+    $handle = fopen('php://memory', 'r+');
+    fwrite($handle, $csvData);
+    rewind($handle);
+
+    while (($data = fgetcsv($handle)) !== false) {
+        $rows[] = $data;
+    }
+    fclose($handle);
+
+    return $rows;
+}
+
+/**
+ * The per row outcome table shown after a dry run or a live run.
+ *
+ * @param string $id         DataTable id, unique on the page.
+ * @param array  $rowResults Rows from CAT4Importer::run().
+ *
+ * @return string Empty when there is nothing to show.
+ */
+function renderCAT4RowResults(string $id, array $rowResults): string
+{
+    if (empty($rowResults)) {
+        return '';
+    }
+
+    $table = DataTable::create($id);
+    $table->setTitle(__('Import Results'));
+    $table->addColumn('assessment', __('Assessment'));
+    $table->addColumn('rowNumber', __('Row'));
+    $table->addColumn('student', __('Student'));
+    $table->addColumn('date', __('Date'));
+    $table->addColumn('status', __('Status'));
+    $table->addColumn('details', __('Details'));
+
+    return $table->render(new DataSet($rowResults));
+}
 
 function renderCAT4ExecutionResults($page, array $results): void
 {
@@ -71,17 +120,11 @@ if (!$hasUsableDefaultMappings) {
     $page->addError(__('CAT4 Import cannot continue until CAT4 Import Mapping has been configured.'));
 
     echo '<h2>' . __('Module Setup Required') . '</h2>';
-    echo '<div class="warning flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">';
-    echo '<div class="flex-1">';
-    echo __('Before importing CAT4 data, you must complete the CAT4 Import Mapping setup and save the spreadsheet column mappings.');
-    echo '</div>';
-    echo '<div class="text-left sm:text-right sm:ml-auto">';
-    echo '<a class="rounded-md px-4 py-2 text-sm sm:leading-5 inline-block align-middle font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 border border-amber-600 bg-white hover:bg-amber-50 text-amber-900 no-underline" href="'
-        . htmlspecialchars($mappingURL) . '">'
-        . __('Go to CAT4 Import Mapping')
-        . '</a>';
-    echo '</div>';
-    echo '</div>';
+    echo academicRecordsSetupWarning(
+        __('Before importing CAT4 data, you must complete the CAT4 Import Mapping setup and save the spreadsheet column mappings.'),
+        __('Go to CAT4 Import Mapping'),
+        $mappingURL
+    );
     return;
 }
 
@@ -149,16 +192,7 @@ elseif ($step == 2) {
         return;
     }
 
-    // Parse CSV
-    $rows = [];
-    $handle = fopen('php://memory','r+');
-    fwrite($handle, $csvData);
-    rewind($handle);
-
-    while (($data = fgetcsv($handle)) !== false) {
-        $rows[] = $data;
-    }
-    fclose($handle);
+    $rows = parseCAT4Csv($csvData);
 
     if (count($rows) < 2) {
         echo Format::alert(__('File appears empty.'));
@@ -214,15 +248,7 @@ elseif ($step == 3 || $step == 4) {
         return;
     }
 
-    $rows = [];
-    $handle = fopen('php://memory','r+');
-    fwrite($handle, $csvData);
-    rewind($handle);
-
-    while (($data = fgetcsv($handle)) !== false) {
-        $rows[] = $data;
-    }
-    fclose($handle);
+    $rows = parseCAT4Csv($csvData);
 
     if (count($rows) < 2) {
         echo Format::alert(__('No data found.'));
@@ -239,9 +265,7 @@ elseif ($step == 3 || $step == 4) {
 		$assocRows[] = array_combine($headings, $normalisedRow);
 	}
 
-    require __DIR__.'/cat4_import_process.php';
-
-    $result = runCAT4Import($pdo, $container, $assocRows, $isLive);
+    $result = $container->get(CAT4Importer::class)->run($assocRows, $isLive);
 
     $overallSuccess = (bool) ($result['success'] ?? false);
 
@@ -300,72 +324,23 @@ elseif ($step == 3 || $step == 4) {
         $form->addHiddenValue('address', $session->get('address'));
         $form->addHiddenValue('csvData', $csvData);
 
-        $payloadPreview = buildCAT4PayloadPreview($result, $headings, $assocRows);
+        $payloadPanel = academicRecordsPayloadPanel(buildCAT4PayloadPreview($result, $headings, $assocRows));
 
-        if ($payloadPreview !== '') {
-            $row = $form->addRow();
-            $row->addContent(
-                '<details class="w-full rounded border border-gray-400 bg-white">'
-                . '<summary class="cursor-pointer select-none px-4 py-3 font-semibold text-gray-800">'
-                . __('Data')
-                . '</summary>'
-                . '<div class="px-4 pb-4 pt-2">'
-                . '<textarea readonly rows="16" cols="74" class="w-full" style="font-family: monospace;">'
-                . htmlspecialchars($payloadPreview)
-                . '</textarea>'
-                . '</div>'
-                . '</details>'
-            );
+        if ($payloadPanel !== '') {
+            $form->addRow()->addContent($payloadPanel);
         }
 
-        $rowResultsHtml = '';
-        if (!empty($rowResults)) {
-            $table = DataTable::create('cat4ImportResults');
-            $table->setTitle(__('Import Results'));
-            $table->addColumn('assessment', __('Assessment'));
-            $table->addColumn('rowNumber', __('Row'));
-            $table->addColumn('student', __('Student'));
-            $table->addColumn('date', __('Date'));
-            $table->addColumn('status', __('Status'));
-            $table->addColumn('details', __('Details'));
-
-            $rowResultsHtml = $table->render(new DataSet($rowResults));
-        }
+        $rowResultsHtml = renderCAT4RowResults('cat4ImportResults', $rowResults);
 
         if ($rowResultsHtml !== '') {
-            $row = $form->addRow();
-            $row->addContent($rowResultsHtml);
+            $form->addRow()->addContent($rowResultsHtml);
         }
 
         $row = $form->addRow();
-        $row->addContent(
-            '<div style="width:100%; display:flex; justify-content:space-between; align-items:center; gap:16px; padding-top:8px;">'
-            . '<a class="no-underline" style="display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:6px; border:1px solid #475569; background:#475569; color:#ffffff; font-size:14px; font-weight:600; line-height:1.25; box-shadow:0 1px 2px rgba(15, 23, 42, 0.18);" onmouseover="this.style.backgroundColor=\'#334155\';this.style.borderColor=\'#334155\';" onmouseout="this.style.backgroundColor=\'#475569\';this.style.borderColor=\'#475569\';" href="' . htmlspecialchars($backURL) . '">'
-            . '&#8592; ' . __('Back')
-            . '</a>'
-            . (!empty($result['canLiveRun'])
-                ? '<button type="submit" id="submitStep3" style="display:inline-flex; align-items:center; padding:8px 16px; border-radius:6px; border:1px solid #1f2937; background:#374151; color:#ffffff; font-size:14px; font-weight:600; line-height:1.25; box-shadow:0 1px 2px rgba(15, 23, 42, 0.18); cursor:pointer;" onmouseover="this.style.backgroundColor=\'#1f2937\';" onmouseout="this.style.backgroundColor=\'#374151\';">'
-                . __('Run Live Import')
-                . '</button>'
-                : '<button type="button" id="submitStep3" disabled style="display:inline-flex; align-items:center; padding:8px 16px; border-radius:6px; border:1px solid #cbd5e1; background:#e2e8f0; color:#64748b; font-size:14px; font-weight:600; line-height:1.25; box-shadow:none; cursor:not-allowed;">'
-                . __('Failed')
-                . '</button>')
-            . '</div>'
-        );
+        $row->addContent(academicRecordsWizardNav($backURL, __('Run Live Import'), !empty($result['canLiveRun']), ['id' => 'submitStep3']));
 
         echo $form->getOutput();
     } else {
-        if (!empty($rowResults)) {
-            $table = DataTable::create('cat4ImportResultsLive');
-            $table->setTitle(__('Import Results'));
-            $table->addColumn('assessment', __('Assessment'));
-            $table->addColumn('rowNumber', __('Row'));
-            $table->addColumn('student', __('Student'));
-            $table->addColumn('date', __('Date'));
-            $table->addColumn('status', __('Status'));
-            $table->addColumn('details', __('Details'));
-
-            echo $table->render(new DataSet($rowResults));
-        }
+        echo renderCAT4RowResults('cat4ImportResultsLive', $rowResults);
     }
 }

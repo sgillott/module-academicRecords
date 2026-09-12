@@ -1,15 +1,34 @@
 <?php
+/**
+ * Reads reporting cycle grades and stores them as Internal Assessment columns.
+ *
+ * The gateway is keyed on gibbonReportingValue, which is where the grades
+ * come from. Everything it writes goes to gibbonInternalAssessmentColumn and
+ * gibbonInternalAssessmentEntry, with the term recorded through the stored
+ * grade index.
+ *
+ * @category Module
+ * @package  Gibbon\Module\AcademicRecords
+ * @author   Steve Gillott
+ * @license  https://www.gnu.org/licenses/gpl-3.0.html GNU GPL v3
+ * @version  GIT: $Id$
+ * @link     https://gibbonedu.org
+ */
+
 namespace Gibbon\Module\AcademicRecords\Domain;
 
 use PDO;
 use Gibbon\Contracts\Database\Connection;
 use Gibbon\Domain\QueryCriteria;
 use Gibbon\Domain\QueryableGateway;
+use Gibbon\Domain\System\SettingGateway;
 use Gibbon\Domain\Traits\TableAware;
+use Gibbon\Module\AcademicRecords\Domain\Traits\BindsInList;
 
 class AcademicRecordsGateway extends QueryableGateway
 {
     use TableAware;
+    use BindsInList;
 
     private static $tableName = 'gibbonReportingValue';
     private static $primaryKey = 'gibbonReportingValueID';
@@ -22,29 +41,121 @@ class AcademicRecordsGateway extends QueryableGateway
     private $storedGradeGateway;
 
     /**
+     * @var SettingGateway
+     */
+    private $settingGateway;
+
+    /**
      * The container shares one Connection, so index writes issued through
      * the stored grade gateway join the transaction opened here.
      *
      * @param Connection         $db                 Shared database connection.
      * @param StoredGradeGateway $storedGradeGateway Stored grade index.
+     * @param SettingGateway     $settingGateway     Module settings.
      */
-    public function __construct(Connection $db, StoredGradeGateway $storedGradeGateway)
+    public function __construct(Connection $db, StoredGradeGateway $storedGradeGateway, SettingGateway $settingGateway)
     {
         parent::__construct($db);
 
         $this->storedGradeGateway = $storedGradeGateway;
+        $this->settingGateway = $settingGateway;
+    }
+
+    /**
+     * The result shape the Store Grades page expects when a run cannot start.
+     *
+     * The keys match Gibbon's importer.twig.html, which renders the summary.
+     *
+     * @param string $lastError    What went wrong, already translated.
+     * @param bool   $buildSucceeded True when the plan was built and the
+     *                             failure came while writing, so the
+     *                             summary marks only the database step.
+     *
+     * @return array
+     */
+    public static function failureResult(string $lastError, bool $buildSucceeded = false): array
+    {
+        return [
+            'importSuccess' => true,
+            'buildSuccess' => $buildSucceeded,
+            'databaseSuccess' => false,
+            'rows' => 0,
+            'rowerrors' => 1,
+            'errors' => 1,
+            'warnings' => 0,
+            'inserts' => 0,
+            'inserts_skipped' => 0,
+            'updates' => 0,
+            'updates_skipped' => 0,
+            'columnsToCreate' => 0,
+            'noChange' => 0,
+            'lastError' => $lastError,
+            'summary' => ['eligibleRows' => 0],
+        ];
     }
 
     /* ---------------------------------------------------------
        QUERY ELIGIBLE REPORTING GRADES (Step 2 + Dry Run)
     --------------------------------------------------------- */
 
+    /**
+     * The paged preview on Store Grades step 2.
+     *
+     * @param QueryCriteria $criteria Paging from the DataTable.
+     * @param int           $cycleID  gibbonReportingCycleID.
+     * @param array         $filters  Request values from step 1.
+     *
+     * @return \Gibbon\Domain\DataSet
+     */
     public function queryEligibleReportingGrades(
         QueryCriteria $criteria,
         int $cycleID,
         array $filters = []
     ) {
-        $query = $this->newQuery()
+        $query = $this->applyGradeFilters($this->newQuery(), $cycleID, $filters);
+
+        $criteria->sortBy(self::GRADE_ORDER);
+
+        return $this->runQuery($query, $criteria);
+    }
+
+    /**
+     * Every eligible row, for the plan.
+     *
+     * A plain select rather than runQuery(), which would also count the
+     * filtered rows and the whole table for a paging footer nobody reads.
+     *
+     * @param int   $cycleID gibbonReportingCycleID.
+     * @param array $filters Request values from step 1.
+     *
+     * @return array
+     */
+    public function selectEligibleReportingGradesForDryRun(int $cycleID, array $filters = []): array
+    {
+        $query = $this->applyGradeFilters($this->newSelect(), $cycleID, $filters)
+            ->orderBy(self::GRADE_ORDER);
+
+        return $this->runSelect($query)->fetchAll();
+    }
+
+    /**
+     * The order both readers return rows in, so the preview and the plan
+     * agree on which of two rows for the same cell is the later one.
+     */
+    private const GRADE_ORDER = ['p.surname', 'p.preferredName', 'c.nameShort', 'rc.name'];
+
+    /**
+     * The eligible grades of a cycle, with the step 1 filters applied.
+     *
+     * @param \Aura\SqlQuery\Common\SelectInterface $query   Fresh select.
+     * @param int                                   $cycleID gibbonReportingCycleID.
+     * @param array                                 $filters Request values from step 1.
+     *
+     * @return \Aura\SqlQuery\Common\SelectInterface
+     */
+    private function applyGradeFilters($query, int $cycleID, array $filters)
+    {
+        $query
             ->from('gibbonReportingValue AS rv')
             ->cols([
                 'rv.gibbonReportingValueID',
@@ -194,74 +305,50 @@ class AcademicRecordsGateway extends QueryableGateway
             }
         }
 
-        $criteria->sortBy(['p.surname', 'p.preferredName', 'c.nameShort', 'rc.name']);
-
-        return $this->runQuery($query, $criteria);
-    }
-
-    public function selectEligibleReportingGradesForDryRun(int $cycleID, array $filters = []): array
-    {
-        $criteria = $this->newQueryCriteria(true)->pageSize(1000000);
-        return $this->queryEligibleReportingGrades($criteria, $cycleID, $filters)->toArray();
+        return $query;
     }
 
     /* ---------------------------------------------------------
        STORE / DRY RUN
     --------------------------------------------------------- */
 
-    public function dryRunStoreReportingGrades(int $cycleID, array $filters, int $actorID): array
+    /**
+     * Plan the store, and carry it out when asked to.
+     *
+     * The dry run and the live run share this one method, so what the dry
+     * run reports is exactly what the live run writes.
+     *
+     * @param int   $cycleID gibbonReportingCycleID to read grades from.
+     * @param array $filters Request values from the Store Grades wizard.
+     * @param int   $actorID Who is storing.
+     * @param bool  $isLive  True writes to the database inside one
+     *                       transaction. False only plans.
+     *
+     * @return array Summary in the shape importer.twig.html expects, plus a
+     *               payload for the Data panel.
+     */
+    public function dryRunStoreReportingGrades(int $cycleID, array $filters, int $actorID, bool $isLive = false): array
     {
-        // NOTE: In this environment $this->db() returns a Gibbon\Database\Connection wrapper, not PDO.
-        $pdo = $this->db();
+        $db = $this->db();
 
-        $cycleSelect = $this->newSelect()
-            ->from('gibbonReportingCycle AS rc')
-            ->cols([
-                'rc.name',
-                'rc.nameShort',
-                'rc.dateEnd',
-                'rc.gibbonSchoolYearID',
-                'sy.name AS schoolYearName',
-            ])
-            ->innerJoin('gibbonSchoolYear AS sy', 'sy.gibbonSchoolYearID = rc.gibbonSchoolYearID')
-            ->where('rc.gibbonReportingCycleID = :cycleID')
-            ->bindValue('cycleID', $cycleID, PDO::PARAM_INT);
+        $cycle = $this->storedGradeGateway->getCycleContext($cycleID);
 
-        $cycle = $this->runSelect($cycleSelect)->fetch();
-
-        if (!$cycle) {
+        if (empty($cycle)) {
             return ['summary' => ['eligibleRows' => 0]];
         }
 
         $cycleShort = trim(($cycle['nameShort'] ?? '') !== '' ? $cycle['nameShort'] : ($cycle['name'] ?? ''));
         $schoolYear = (string) ($cycle['schoolYearName'] ?? '');
-        $completeDate = $cycle['dateEnd'] ?? null;
 
         $columnName = mb_substr(trim($schoolYear . ' ' . $cycleShort . ' Final Grade'), 0, 30);
         $columnDescription = 'Stored Final Grade from ' . $schoolYear . ' ' . $cycleShort;
 
-        $type = $this->getSetting('internalAssessmentType');
-        $viewStudents = $this->getSetting('viewableStudents') ?: 'Y';
-        $viewParents  = $this->getSetting('viewableParents') ?: 'Y';
+        $type = (string) $this->settingGateway->getSettingByScope('Academic Records', 'internalAssessmentType');
+        $viewStudents = $this->settingGateway->getSettingByScope('Academic Records', 'viewableStudents') ?: 'Y';
+        $viewParents  = $this->settingGateway->getSettingByScope('Academic Records', 'viewableParents') ?: 'Y';
 
-        if (empty($type)) {
-            return [
-                'importSuccess' => true,
-                'buildSuccess' => false,
-                'databaseSuccess' => false,
-                'rows' => 0,
-                'rowerrors' => 1,
-                'errors' => 1,
-                'warnings' => 0,
-                'inserts' => 0,
-                'inserts_skipped' => 0,
-                'updates' => 0,
-                'updates_skipped' => 0,
-                'columnsToCreate' => 0,
-                'noChange' => 0,
-                'lastError' => 'Academic Records Settings are incomplete: Internal Assessment Type is required.',
-                'summary' => ['eligibleRows' => 0],
-            ];
+        if ($type === '') {
+            return self::failureResult('Academic Records Settings are incomplete: Internal Assessment Type is required.');
         }
 
         /* ---------------------------
@@ -273,29 +360,14 @@ class AcademicRecordsGateway extends QueryableGateway
         --------------------------- */
 
         $schoolYearID = (string) ($cycle['gibbonSchoolYearID'] ?? '');
-        $termID = $this->resolveTermID($filters, $schoolYearID);
+        $term = $this->resolveTerm($filters, $schoolYearID);
 
-        if ($termID === '') {
-            return [
-                'importSuccess' => true,
-                'buildSuccess' => false,
-                'databaseSuccess' => false,
-                'rows' => 0,
-                'rowerrors' => 1,
-                'errors' => 1,
-                'warnings' => 0,
-                'inserts' => 0,
-                'inserts_skipped' => 0,
-                'updates' => 0,
-                'updates_skipped' => 0,
-                'columnsToCreate' => 0,
-                'noChange' => 0,
-                'lastError' => 'Store as Term is required, and must be a term of the school year this reporting cycle belongs to.',
-                'summary' => ['eligibleRows' => 0],
-            ];
+        if (empty($term)) {
+            return self::failureResult('Store as Term is required, and must be a term of the school year this reporting cycle belongs to.');
         }
 
-        $termName = $this->getTermName($termID);
+        $termID = (string) $term['gibbonSchoolYearTermID'];
+        $termName = (string) $term['name'];
 
         $rows = $this->selectEligibleReportingGradesForDryRun($cycleID, $filters);
 
@@ -352,10 +424,16 @@ class AcademicRecordsGateway extends QueryableGateway
         $entriesNoChange = 0;
         $storagePlan = [];
 
-        $isLive = ($filters['step'] ?? 3) == 4;
+        // Read the existing columns and entries in two queries, rather than
+        // one per class and one per student. A full cycle is thousands of
+        // rows, and the plan only needs to look each one up.
+        $columnsByClass = $this->selectColumnsByClassKeyed(array_keys($groupedRows), $columnName, $type);
+        $entriesByColumn = $this->selectEntriesKeyed(array_map(function ($column) {
+            return (int) $column['gibbonInternalAssessmentColumnID'];
+        }, $columnsByClass));
 
         if ($isLive) {
-            $pdo->beginTransaction();
+            $db->beginTransaction();
         }
 
         try {
@@ -378,25 +456,7 @@ class AcademicRecordsGateway extends QueryableGateway
                 $hasRequestedAttainment = $requestedAttainmentScaleID > 0;
                 $hasRequestedEffort = $requestedEffortScaleID > 0;
 
-                // Existing column?
-                $column = $this->runSelect(
-                    $this->newSelect()
-                        ->from('gibbonInternalAssessmentColumn')
-                        ->cols([
-                            'gibbonInternalAssessmentColumnID',
-                            'attainment',
-                            'gibbonScaleIDAttainment',
-                            'effort',
-                            'gibbonScaleIDEffort',
-                        ])
-                        ->where('gibbonCourseClassID = :classID')
-                        ->where('name = :name')
-                        ->where('type = :type')
-                        ->bindValue('classID', $classID, PDO::PARAM_INT)
-                        ->bindValue('name', $columnName, PDO::PARAM_STR)
-                        ->bindValue('type', $type, PDO::PARAM_STR)
-                )->fetch();
-
+                $column = $columnsByClass[$classID] ?? [];
                 $columnID = (int) ($column['gibbonInternalAssessmentColumnID'] ?? 0);
 
                 $existingAttainmentEnabled = ($column['attainment'] ?? 'N') === 'Y';
@@ -437,24 +497,9 @@ class AcademicRecordsGateway extends QueryableGateway
                                 'gibbonPersonIDLastEdit' => $actorID,
                             ]);
 
-                        $this->runInsert($insert);
-
-                        // IMPORTANT:
-                        // Gibbon\Database\Connection does not support lastInsertId().
-                        // Re-select the inserted row deterministically using the natural key.
-                        $columnID = (int) $this->runSelect(
-                            $this->newSelect()
-                                ->from('gibbonInternalAssessmentColumn')
-                                ->cols(['gibbonInternalAssessmentColumnID'])
-                                ->where('gibbonCourseClassID = :classID2')
-                                ->where('name = :name2')
-                                ->where('type = :type2')
-                                ->orderBy(['gibbonInternalAssessmentColumnID DESC'])
-                                ->limit(1)
-                                ->bindValue('classID2', $classID, PDO::PARAM_INT)
-                                ->bindValue('name2', $columnName, PDO::PARAM_STR)
-                                ->bindValue('type2', $type, PDO::PARAM_STR)
-                        )->fetchColumn();
+                        // Connection::insert() returns lastInsertId, which is
+                        // what runInsert() passes back.
+                        $columnID = (int) $this->runInsert($insert);
 
                         if ($columnID <= 0) {
                             throw new \RuntimeException('Failed to determine gibbonInternalAssessmentColumnID after insert.');
@@ -507,16 +552,7 @@ class AcademicRecordsGateway extends QueryableGateway
                     $existingEffort = null;
                     $plannedAction = 'insert';
 
-                    // Existing entry?
-                    $existing = $this->runSelect(
-                        $this->newSelect()
-                            ->from('gibbonInternalAssessmentEntry')
-                            ->cols(['gibbonInternalAssessmentEntryID', 'attainmentValue', 'effortValue'])
-                            ->where('gibbonInternalAssessmentColumnID = :col')
-                            ->where('gibbonPersonIDStudent = :stu')
-                            ->bindValue('col', $columnID, PDO::PARAM_INT)
-                            ->bindValue('stu', $studentID, PDO::PARAM_INT)
-                    )->fetch();
+                    $existing = $entriesByColumn[$columnID][$studentID] ?? null;
 
                     if (!$existing) {
 
@@ -612,14 +648,14 @@ class AcademicRecordsGateway extends QueryableGateway
             }
 
             if ($isLive) {
-                $pdo->commit();
+                $db->commit();
             }
 
         } catch (\Throwable $e) {
 
             if ($isLive) {
                 try {
-                    $pdo->rollBack();
+                    $db->rollBack();
                 } catch (\Throwable $t) {
                     // ignore rollback failures
                 }
@@ -660,86 +696,135 @@ class AcademicRecordsGateway extends QueryableGateway
         ];
     }
 
-    private function getSetting(string $name): ?string
-    {
-        $select = $this->newSelect()
-            ->from('gibbonSetting')
-            ->cols(['value'])
-            ->where("scope = 'Academic Records'")
-            ->where('name = :name')
-            ->bindValue('name', $name, PDO::PARAM_STR);
-
-        $val = $this->runSelect($select)->fetchColumn();
-        return $val !== false ? (string) $val : null;
-    }
-
     /**
      * The chosen term, checked against the school year of the reporting cycle.
      *
      * @param array  $filters      Request values from the Store Grades wizard.
      * @param string $schoolYearID The school year of the reporting cycle.
      *
-     * @return string gibbonSchoolYearTermID, or an empty string when the
-     *                value is missing or belongs to another school year.
+     * @return array The gibbonSchoolYearTerm row, or empty when the value is
+     *               missing or belongs to another school year.
      */
-    private function resolveTermID(array $filters, string $schoolYearID): string
+    private function resolveTerm(array $filters, string $schoolYearID): array
     {
         $termID = trim((string) ($filters['gibbonSchoolYearTermID'] ?? ''));
 
         if ($termID === '' || !ctype_digit($termID) || $schoolYearID === '') {
-            return '';
+            return [];
         }
 
-        $sql = "SELECT gibbonSchoolYearTermID
-                FROM gibbonSchoolYearTerm
-                WHERE gibbonSchoolYearTermID = :termID
-                    AND gibbonSchoolYearID = :schoolYearID";
+        // Compared as integers, because the request value arrives without the
+        // leading zeros the database stores.
+        foreach ($this->storedGradeGateway->selectTermsBySchoolYear($schoolYearID) as $term) {
+            if ((int) $term['gibbonSchoolYearTermID'] === (int) $termID) {
+                return $term;
+            }
+        }
 
-        $data = [
-            'termID' => $termID,
-            'schoolYearID' => $schoolYearID,
-        ];
-
-        // Connection::selectOne returns the value itself for a one column
-        // query, and 0 when nothing matches.
-        $found = $this->db()->selectOne($sql, $data);
-
-        return !empty($found) ? (string) $found : '';
+        return [];
     }
 
     /**
-     * Readable name of a term, for the dry run diagnostics.
+     * The stored grade column of each class, keyed by gibbonCourseClassID.
      *
-     * @param string $termID gibbonSchoolYearTermID to read.
+     * A column is matched on class, name and type, which is how the store
+     * finds the column it wrote on an earlier run of the same cycle.
      *
-     * @return string
+     * @param array  $classIDs   Classes in the plan.
+     * @param string $columnName Column name the store uses for this cycle.
+     * @param string $type       Internal Assessment Type this module owns.
+     *
+     * @return array
      */
-    private function getTermName(string $termID): string
+    private function selectColumnsByClassKeyed(array $classIDs, string $columnName, string $type): array
     {
-        $sql = "SELECT name
-                FROM gibbonSchoolYearTerm
-                WHERE gibbonSchoolYearTermID = :termID";
+        if (empty($classIDs)) {
+            return [];
+        }
 
-        $data = ['termID' => $termID];
+        // A bound IN list, not FIND_IN_SET. The ID columns are ZEROFILL, and
+        // FIND_IN_SET would compare the padded string form.
+        [$placeholders, $bindings] = $this->inList($classIDs, 'cls', true);
 
-        $name = $this->db()->selectOne($sql, $data);
+        $select = $this->newSelect()
+            ->from('gibbonInternalAssessmentColumn')
+            ->cols([
+                'gibbonInternalAssessmentColumnID',
+                'gibbonCourseClassID',
+                'attainment',
+                'gibbonScaleIDAttainment',
+                'effort',
+                'gibbonScaleIDEffort',
+            ])
+            ->where('gibbonCourseClassID IN (' . $placeholders . ')')
+            ->where('name = :name')
+            ->where('type = :type')
+            ->orderBy(['gibbonInternalAssessmentColumnID'])
+            ->bindValues($bindings)
+            ->bindValue('name', $columnName, PDO::PARAM_STR)
+            ->bindValue('type', $type, PDO::PARAM_STR);
 
-        return is_string($name) ? $name : '';
+        $keyed = [];
+
+        foreach ($this->runSelect($select)->fetchAll() as $column) {
+            $classID = (int) $column['gibbonCourseClassID'];
+
+            // The first column wins where a class somehow has two.
+            if (!isset($keyed[$classID])) {
+                $keyed[$classID] = $column;
+            }
+        }
+
+        return $keyed;
+    }
+
+    /**
+     * Every entry of the given columns, keyed by column then student.
+     *
+     * @param array $columnIDs gibbonInternalAssessmentColumnID values.
+     *
+     * @return array
+     */
+    private function selectEntriesKeyed(array $columnIDs): array
+    {
+        $columnIDs = array_filter(array_map('intval', $columnIDs));
+
+        if (empty($columnIDs)) {
+            return [];
+        }
+
+        [$placeholders, $bindings] = $this->inList($columnIDs, 'col', true);
+
+        $select = $this->newSelect()
+            ->from('gibbonInternalAssessmentEntry')
+            ->cols([
+                'gibbonInternalAssessmentEntryID',
+                'gibbonInternalAssessmentColumnID',
+                'gibbonPersonIDStudent',
+                'attainmentValue',
+                'effortValue',
+            ])
+            ->where('gibbonInternalAssessmentColumnID IN (' . $placeholders . ')')
+            ->orderBy(['gibbonInternalAssessmentEntryID'])
+            ->bindValues($bindings);
+
+        $keyed = [];
+
+        foreach ($this->runSelect($select)->fetchAll() as $entry) {
+            $columnID = (int) $entry['gibbonInternalAssessmentColumnID'];
+            $studentID = (int) $entry['gibbonPersonIDStudent'];
+
+            if (!isset($keyed[$columnID][$studentID])) {
+                $keyed[$columnID][$studentID] = $entry;
+            }
+        }
+
+        return $keyed;
     }
 
     private function normalizeYearGroupID($id): string
     {
-        $id = trim((string) $id);
-
-        if (ctype_digit($id) && strlen($id) >= 3) {
-            return $id;
-        }
-
-        if (ctype_digit($id)) {
-            return str_pad($id, 3, '0', STR_PAD_LEFT);
-        }
-
-        return $id;
+        return normalizeYearGroupID($id);
     }
 
     private function resolveTargetField(string $criteriaTypeName, string $criteriaName): string

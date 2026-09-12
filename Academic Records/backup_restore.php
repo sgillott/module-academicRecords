@@ -21,10 +21,10 @@ $row = $exportForm->addRow();
 $row->addHeading(__('Export Settings'));
 
 $row = $exportForm->addRow();
-$row->addContent(__('Download a JSON backup of Academic Records settings, CAT4 mapping data and Testwise year group mappings.'));
+$row->addContent(__('Download a JSON backup of Academic Records settings, CAT4 mapping data, Testwise year group mappings, transcript grade setup and course credits.'));
 
 $row = $exportForm->addRow();
-$row->addContent(__('This backup includes module `gibbonSetting` rows, which cover the Testwise Region, plus the CAT4 mapping tables and the Testwise year group mappings. It does not include permissions, hooks, student exports, or stored academic record data.'));
+$row->addContent(__('This backup includes module `gibbonSetting` rows, which cover the Testwise Region and the transcript options, plus the CAT4 mapping tables, the Testwise year group mappings, the Grade Setup of each scale and the credit and transcript switch of each course. It does not include permissions, hooks, student exports, transcript overrides per student, or stored academic record data.'));
 
 $row = $exportForm->addRow();
 $row->addFooter();
@@ -42,16 +42,16 @@ $row = $importForm->addRow();
 $row->addHeading(__('Restore Settings'));
 
 $row = $importForm->addRow();
-$row->addContent(__('Upload a previously exported JSON backup to restore Academic Records settings, CAT4 mappings and Testwise year group mappings after reinstalling the module or moving configuration between environments.'));
+$row->addContent(__('Upload a previously exported JSON backup to restore Academic Records settings, CAT4 mappings, Testwise year group mappings, grade setup and course credits after reinstalling the module or moving configuration between environments.'));
 
 $row = $importForm->addRow();
-$row->addContent(__('Restore updates existing module settings and replaces the CAT4 mapping rows and Testwise year group mappings in this module with the contents of the backup file.'));
+$row->addContent(__('Restore updates existing module settings and replaces the CAT4 mapping rows, Testwise year group mappings, grade setup and course credits in this module with the contents of the backup file.'));
 
 $row = $importForm->addRow();
 $row->addContent(__('Only the parts the file holds are restored. A backup from a school that never set up CAT4 or Testwise year groups restores its settings and leaves those tables alone, rather than being rejected.'));
 
 $row = $importForm->addRow();
-$row->addContent(__('Year group mappings are matched on the year group name, then its short name, so a backup can be restored onto another Gibbon install. A year group in the backup that does not exist here is skipped.'));
+$row->addContent(__('Year group mappings, grade setup and course credits are matched on names, not IDs, so a backup can be restored onto another Gibbon install. A year group, scale or course in the backup that does not exist here is skipped.'));
 
 $row = $importForm->addRow();
 $row->addLabel('settingsBackupFile', __('Backup File'))

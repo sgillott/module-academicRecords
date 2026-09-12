@@ -19,10 +19,12 @@ namespace Gibbon\Module\AcademicRecords\Domain;
 
 use Gibbon\Domain\QueryableGateway;
 use Gibbon\Domain\Traits\TableAware;
+use Gibbon\Module\AcademicRecords\Domain\Traits\BindsInList;
 
 class CourseCreditGateway extends QueryableGateway
 {
     use TableAware;
+    use BindsInList;
 
     private static $tableName = 'academicRecordsCourseCredit';
     private static $primaryKey = 'academicRecordsCourseCreditID';
@@ -71,20 +73,13 @@ class CourseCreditGateway extends QueryableGateway
             return [];
         }
 
-        $placeholders = [];
-        $data = [];
-
-        foreach (array_values($courseIDs) as $index => $courseID) {
-            $key = 'c' . $index;
-            $placeholders[] = ':' . $key;
-            $data[$key] = $courseID;
-        }
+        [$placeholders, $data] = $this->inList($courseIDs, 'c');
 
         $sql = "SELECT gibbonCourseID,
                     creditPerTerm,
                     showOnTranscript
                 FROM academicRecordsCourseCredit
-                WHERE gibbonCourseID IN (" . implode(', ', $placeholders) . ")";
+                WHERE gibbonCourseID IN ({$placeholders})";
 
         $rows = $this->db()->select($sql, $data)->fetchAll();
         $keyed = [];

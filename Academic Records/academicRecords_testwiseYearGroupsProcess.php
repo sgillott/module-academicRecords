@@ -11,6 +11,7 @@
  */
 
 use Gibbon\Module\AcademicRecords\Domain\YearGroupMapGateway;
+use Gibbon\Module\AcademicRecords\Testwise\Year;
 
 require_once '../../gibbon.php';
 require_once __DIR__ . '/moduleFunctions.php';
@@ -49,7 +50,7 @@ foreach ($submitted as $yearGroupID => $rawValue) {
         continue;
     }
 
-    $value = testwiseNormaliseYear((string) $rawValue);
+    $value = Year::normaliseYear((string) $rawValue);
 
     // An empty value clears the mapping, which puts the year group back on the
     // region rule rather than leaving a stale value behind.
@@ -58,7 +59,7 @@ foreach ($submitted as $yearGroupID => $rawValue) {
         continue;
     }
 
-    if (!testwiseIsValidYear($value)) {
+    if (!Year::isValidYear($value)) {
         header("Location: {$URL}&return=error1");
         exit;
     }

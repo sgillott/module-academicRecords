@@ -29,7 +29,7 @@ use Gibbon\Forms\Form;
 use Gibbon\Services\Format;
 use Gibbon\Domain\System\SettingGateway;
 use Gibbon\Module\AcademicRecords\Domain\CourseCreditGateway;
-use Gibbon\Module\AcademicRecords\Domain\TranscriptGateway;
+use Gibbon\Module\AcademicRecords\Domain\YearGroupMapGateway;
 
 require_once __DIR__ . '/moduleFunctions.php';
 
@@ -42,7 +42,6 @@ $page->breadcrumbs->add(__('Course Credits'));
 echo '<h2>' . __('Course Credits') . '</h2>';
 
 $creditGateway = $container->get(CourseCreditGateway::class);
-$transcriptGateway = $container->get(TranscriptGateway::class);
 $settingGateway = $container->get(SettingGateway::class);
 
 $gibbonSchoolYearID = $_GET['gibbonSchoolYearID'] ?? $session->get('gibbonSchoolYearID');
@@ -55,7 +54,7 @@ $page->navigator->addSchoolYearNavigation($gibbonSchoolYearID);
 $transcriptYearGroups = normalizeRequestList((string) ($settingGateway->getSettingByScope('Academic Records', 'transcriptYearGroups', true)['value'] ?? ''));
 
 $yearGroupOptions = [];
-foreach ($transcriptGateway->selectYearGroupOptions() as $yearGroup) {
+foreach ($container->get(YearGroupMapGateway::class)->selectYearGroups() as $yearGroup) {
     $id = (string) $yearGroup['gibbonYearGroupID'];
 
     if (empty($transcriptYearGroups) || in_array($id, $transcriptYearGroups, true)) {
@@ -98,13 +97,11 @@ echo Format::alert(
    The table
 ----------------------------------------------------- */
 
-$themeColour = $session->has('themeColour') ? $session->get('themeColour') : 'purple';
-
-// The classes Gibbon gives the controls inside its bulk action panel.
-$inputClass = 'rounded-md min-w-0 border py-2 px-2 placeholder:text-gray-500 sm:text-sm sm:leading-5 text-gray-900 focus:ring-1 focus:ring-inset focus:ring-blue-500';
-$selectClass = 'rounded-md min-w-16 border py-2 text-gray-900 placeholder:text-gray-500 focus:ring-1 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-5';
-$buttonClass = 'rounded-md px-4 py-2 text-sm sm:leading-5 inline-block align-middle items-center font-semibold shadow-sm border border-gray-800 bg-gray-800 hover:bg-gray-900 text-white';
-$barCell = 'bg-' . htmlspecialchars($themeColour) . '-600 p-1 pt-2';
+$bar = academicRecordsBulkBarClasses($session->has('themeColour') ? $session->get('themeColour') : 'purple');
+$inputClass = $bar['input'];
+$selectClass = $bar['select'];
+$buttonClass = $bar['button'];
+$barCell = $bar['cell'];
 
 $form = Form::create(
     'courseCredits',

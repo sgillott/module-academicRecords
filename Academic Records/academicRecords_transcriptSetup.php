@@ -24,7 +24,7 @@ use Gibbon\Services\Format;
 use Gibbon\Domain\System\SettingGateway;
 use Gibbon\Module\AcademicRecords\Domain\CourseCreditGateway;
 use Gibbon\Module\AcademicRecords\Domain\StoredGradeGateway;
-use Gibbon\Module\AcademicRecords\Domain\TranscriptGateway;
+use Gibbon\Module\AcademicRecords\Domain\YearGroupMapGateway;
 
 require_once __DIR__ . '/moduleFunctions.php';
 
@@ -37,7 +37,6 @@ $page->breadcrumbs->add(__('Transcript Setup'));
 
 $settingGateway = $container->get(SettingGateway::class);
 $storedGradeGateway = $container->get(StoredGradeGateway::class);
-$transcriptGateway = $container->get(TranscriptGateway::class);
 $creditGateway = $container->get(CourseCreditGateway::class);
 
 $processURL = $session->get('absoluteURL') . '/modules/Academic Records/academicRecords_transcriptSetupProcess.php';
@@ -53,7 +52,7 @@ $chosenYearGroups = normalizeRequestList($yearGroupSetting);
 $gpaMethod = trim((string) ($settingGateway->getSettingByScope('Academic Records', 'transcriptGpaMethod', true)['value'] ?? ''));
 
 $yearGroupOptions = [];
-foreach ($transcriptGateway->selectYearGroupOptions() as $yearGroup) {
+foreach ($container->get(YearGroupMapGateway::class)->selectYearGroups() as $yearGroup) {
     $yearGroupOptions[(string) $yearGroup['gibbonYearGroupID']] = (string) $yearGroup['name'];
 }
 

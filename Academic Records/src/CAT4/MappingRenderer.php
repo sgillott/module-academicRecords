@@ -1,14 +1,26 @@
 <?php
+/**
+ * Draws one assessment's mapping section on the CAT4 Import Mapping page.
+ *
+ * @category Module
+ * @package  Gibbon\Module\AcademicRecords
+ * @author   Steve Gillott
+ * @license  https://www.gnu.org/licenses/gpl-3.0.html GNU GPL v3
+ * @version  GIT: $Id$
+ * @link     https://gibbonedu.org
+ */
+
+namespace Gibbon\Module\AcademicRecords\CAT4;
 
 use Gibbon\Forms\Form;
 use Gibbon\Module\AcademicRecords\Domain\CAT4MappingGateway;
 
-class CAT4MappingRenderer
+class MappingRenderer
 {
     public static function renderSection(
         Form $form,
         CAT4MappingGateway $gateway,
-        CAT4MappingService $mappingService,
+        MappingService $mappingService,
         int $assessmentID,
         string $assessmentName,
         string $title,

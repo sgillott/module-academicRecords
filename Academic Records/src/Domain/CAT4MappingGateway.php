@@ -82,15 +82,11 @@ class CAT4MappingGateway extends QueryableGateway
                   AND isDefault = 'Y'
                 ORDER BY timestampUpdated DESC, timestampCreated DESC
                 LIMIT 1";
-        $row = $this->db()->selectOne($sql, ['id' => $assessmentID]);
 
-        if (is_array($row) && isset($row['academicRecordsCAT4MappingID'])) {
-            return (int) $row['academicRecordsCAT4MappingID'];
-        }
-        if (is_string($row) || is_int($row)) {
-            return (int) $row;
-        }
-        return null;
+        // A one column select returns the value itself, or 0 for no row.
+        $mappingID = (int) $this->db()->selectOne($sql, ['id' => $assessmentID]);
+
+        return $mappingID > 0 ? $mappingID : null;
     }
 
     public function selectMappingFields(int $mappingID): array
@@ -129,23 +125,9 @@ class CAT4MappingGateway extends QueryableGateway
                 VALUES
                 (:gibbonExternalAssessmentID, :name, :studentMatchField, :studentIdentifierHeaderPattern, :dateHeaderPattern,
                  :importCategories, :active, 'N', :timestampCreated, :gibbonPersonIDCreated)";
-        $this->db()->insert($sql, $data);
 
-        $sql2 = "SELECT academicRecordsCAT4MappingID
-                 FROM academicRecordsCAT4Mapping
-                 WHERE gibbonExternalAssessmentID = :gibbonExternalAssessmentID
-                   AND name = :name
-                 ORDER BY academicRecordsCAT4MappingID DESC
-                 LIMIT 1";
-        $row = $this->db()->selectOne($sql2, [
-            'gibbonExternalAssessmentID' => $data['gibbonExternalAssessmentID'],
-            'name' => $data['name'],
-        ]);
-
-        if (is_array($row) && isset($row['academicRecordsCAT4MappingID'])) {
-            return (int) $row['academicRecordsCAT4MappingID'];
-        }
-        return (int) $row;
+        // Connection::insert() returns lastInsertId.
+        return (int) $this->db()->insert($sql, $data);
     }
 
     public function replaceMappingFields(int $mappingID, array $fields): void
@@ -206,7 +188,7 @@ class CAT4MappingGateway extends QueryableGateway
         $assessment = $this->getAssessment($assessmentID);
         $assessmentName = trim((string) ($assessment['name'] ?? 'External Assessment'));
 
-        $this->upsertMapping([
+        $mappingID = $this->upsertMapping([
             'gibbonExternalAssessmentID' => $assessmentID,
             'name' => $assessmentName . ' Default Mapping',
             'studentMatchField' => 'studentID',
@@ -217,23 +199,6 @@ class CAT4MappingGateway extends QueryableGateway
             'timestampCreated' => date('Y-m-d H:i:s'),
             'gibbonPersonIDCreated' => $personID,
         ]);
-
-        $latestMapping = $this->db()->selectOne(
-            "SELECT academicRecordsCAT4MappingID
-             FROM academicRecordsCAT4Mapping
-             WHERE gibbonExternalAssessmentID = :assessmentID
-             ORDER BY academicRecordsCAT4MappingID DESC
-             LIMIT 1",
-            ['assessmentID' => $assessmentID]
-        );
-
-        if (is_array($latestMapping) && isset($latestMapping['academicRecordsCAT4MappingID'])) {
-            $mappingID = (int) $latestMapping['academicRecordsCAT4MappingID'];
-        } elseif (is_string($latestMapping) || is_int($latestMapping)) {
-            $mappingID = (int) $latestMapping;
-        } else {
-            $mappingID = 0;
-        }
 
         if ($mappingID <= 0) {
             throw new \RuntimeException('Unable to create CAT4 default mapping record.');

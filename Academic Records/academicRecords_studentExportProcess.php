@@ -3,6 +3,7 @@
 use Gibbon\Services\Format;
 use Gibbon\Domain\System\SettingGateway;
 use Gibbon\Module\AcademicRecords\Domain\YearGroupMapGateway;
+use Gibbon\Module\AcademicRecords\Testwise\StudentExport;
 
 require_once '../../gibbon.php';
 require_once __DIR__ . '/moduleFunctions.php';
@@ -50,10 +51,10 @@ if ($region === '') {
 }
 
 $mapGateway = $container->get(YearGroupMapGateway::class);
-$yearMap = buildTestwiseYearMap($region, $mapGateway->selectYearGroups(), $mapGateway->selectMapKeyed());
+$yearMap = StudentExport::yearMap($region, $mapGateway->selectYearGroups(), $mapGateway->selectMapKeyed());
 
-$headers = getStudentDataExportHeaders();
-$rows = getStudentDataExportRows($connection2, $normalizedDate, $yearMap);
+$headers = StudentExport::headers();
+$rows = $container->get(StudentExport::class)->rows($normalizedDate, $yearMap);
 $filename = $normalizedDate !== null
     ? 'student_export_' . str_replace('-', '', $normalizedDate) . '.csv'
     : 'student_export_all_' . date('Ymd') . '.csv';

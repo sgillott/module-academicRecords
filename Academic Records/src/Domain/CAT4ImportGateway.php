@@ -1,33 +1,52 @@
 <?php
+/**
+ * Reads and writes the External Assessment rows a CAT4 import touches.
+ *
+ * Every lookup here selects one column, and Connection::selectOne returns
+ * that value itself, or 0 when there is no row. An id of 0 is never valid,
+ * so a lookup returns null for "not found" and a positive int otherwise.
+ *
+ * @category Module
+ * @package  Gibbon\Module\AcademicRecords
+ * @author   Steve Gillott
+ * @license  https://www.gnu.org/licenses/gpl-3.0.html GNU GPL v3
+ * @version  GIT: $Id$
+ * @link     https://gibbonedu.org
+ */
 
 namespace Gibbon\Module\AcademicRecords\Domain;
 
 use Gibbon\Domain\QueryableGateway;
 use Gibbon\Domain\Traits\TableAware;
+use Gibbon\Module\AcademicRecords\Domain\Traits\BindsInList;
 
 class CAT4ImportGateway extends QueryableGateway
 {
     use TableAware;
+    use BindsInList;
 
-    private function normalizeNullableId($result, string $key): ?int
+    /**
+     * The gibbonPerson fields a spreadsheet identifier may be matched on.
+     */
+    public const STUDENT_MATCH_FIELDS = ['studentID', 'gibbonPersonID', 'username'];
+
+    /**
+     * A positive id, or null for none.
+     *
+     * @param mixed $value Result of a one column selectOne.
+     *
+     * @return int|null
+     */
+    private function idOrNull($value): ?int
     {
-        if (is_array($result) && isset($result[$key])) {
-            $value = (int) $result[$key];
-            return $value > 0 ? $value : null;
-        }
+        $id = (int) $value;
 
-        if (is_string($result) || is_int($result)) {
-            $value = (int) $result;
-            return $value > 0 ? $value : null;
-        }
-
-        return null;
+        return $id > 0 ? $id : null;
     }
 
     public function findStudentByField(string $field, string $value): ?array
     {
-        $allowed = ['studentID', 'gibbonPersonID', 'username'];
-        if (!in_array($field, $allowed, true)) {
+        if (!in_array($field, self::STUDENT_MATCH_FIELDS, true)) {
             return null;
         }
 
@@ -35,11 +54,7 @@ class CAT4ImportGateway extends QueryableGateway
                 FROM gibbonPerson
                 WHERE {$field} = :value";
 
-        $result = $this->db()->selectOne($sql, [
-            'value' => trim($value),
-        ]);
-
-        $personID = $this->normalizeNullableId($result, 'gibbonPersonID');
+        $personID = $this->idOrNull($this->db()->selectOne($sql, ['value' => trim($value)]));
 
         return $personID !== null
             ? ['gibbonPersonID' => $personID]
@@ -54,13 +69,13 @@ class CAT4ImportGateway extends QueryableGateway
                   AND gibbonPersonID = :personID
                   AND date = :date";
 
-        $result = $this->db()->selectOne($sql, [
+        $data = [
             'assessmentID' => $assessmentID,
             'personID'     => $personID,
             'date'         => $date,
-        ]);
+        ];
 
-        return $this->normalizeNullableId($result, 'gibbonExternalAssessmentStudentID');
+        return $this->idOrNull($this->db()->selectOne($sql, $data));
     }
 
     public function insertExternalAssessmentStudent(int $assessmentID, int $personID, string $date): ?int
@@ -69,24 +84,13 @@ class CAT4ImportGateway extends QueryableGateway
                 (gibbonExternalAssessmentID, gibbonPersonID, date, attachment)
                 VALUES (:assessmentID, :personID, :date, '')";
 
-        $result = $this->db()->insert($sql, [
+        $data = [
             'assessmentID' => $assessmentID,
             'personID'     => $personID,
             'date'         => $date,
-        ]);
+        ];
 
-        return is_numeric($result) && (int) $result > 0
-            ? (int) $result
-            : null;
-    }
-
-    public function getFieldsByAssessment(int $assessmentID): array
-    {
-        $sql = "SELECT gibbonExternalAssessmentFieldID, name, gibbonScaleID
-                FROM gibbonExternalAssessmentField
-                WHERE gibbonExternalAssessmentID = :assessmentID";
-
-        return $this->db()->select($sql, ['assessmentID' => $assessmentID])->fetchAll();
+        return $this->idOrNull($this->db()->insert($sql, $data));
     }
 
     public function findScaleGradeID(int $scaleID, string $value): ?int
@@ -96,12 +100,12 @@ class CAT4ImportGateway extends QueryableGateway
                 WHERE gibbonScaleID = :scaleID
                   AND value = :value";
 
-        $result = $this->db()->selectOne($sql, [
+        $data = [
             'scaleID' => $scaleID,
             'value'   => $value,
-        ]);
+        ];
 
-        return $this->normalizeNullableId($result, 'gibbonScaleGradeID');
+        return $this->idOrNull($this->db()->selectOne($sql, $data));
     }
 
     public function findEntryID(int $externalAssessmentStudentID, int $fieldID): ?int
@@ -111,12 +115,12 @@ class CAT4ImportGateway extends QueryableGateway
                 WHERE gibbonExternalAssessmentStudentID = :studentID
                   AND gibbonExternalAssessmentFieldID = :fieldID";
 
-        $result = $this->db()->selectOne($sql, [
+        $data = [
             'studentID' => $externalAssessmentStudentID,
             'fieldID'   => $fieldID,
-        ]);
+        ];
 
-        return $this->normalizeNullableId($result, 'gibbonExternalAssessmentStudentEntryID');
+        return $this->idOrNull($this->db()->selectOne($sql, $data));
     }
 
     public function findEntryGradeID(int $entryID): ?int
@@ -125,17 +129,7 @@ class CAT4ImportGateway extends QueryableGateway
                 FROM gibbonExternalAssessmentStudentEntry
                 WHERE gibbonExternalAssessmentStudentEntryID = :entryID";
 
-        $result = $this->db()->selectOne($sql, [
-            'entryID' => $entryID,
-        ]);
-
-        if (is_array($result) && array_key_exists('gibbonScaleGradeID', $result)) {
-            return $result['gibbonScaleGradeID'] !== null && (int) $result['gibbonScaleGradeID'] > 0
-                ? (int) $result['gibbonScaleGradeID']
-                : null;
-        }
-
-        return null;
+        return $this->idOrNull($this->db()->selectOne($sql, ['entryID' => $entryID]));
     }
 
     public function insertEntry(int $externalAssessmentStudentID, int $fieldID, ?int $gradeID): ?int
@@ -144,15 +138,13 @@ class CAT4ImportGateway extends QueryableGateway
                 (gibbonExternalAssessmentStudentID, gibbonExternalAssessmentFieldID, gibbonScaleGradeID)
                 VALUES (:studentID, :fieldID, :gradeID)";
 
-        $result = $this->db()->insert($sql, [
+        $data = [
             'studentID' => $externalAssessmentStudentID,
             'fieldID'   => $fieldID,
             'gradeID'   => $gradeID,
-        ]);
+        ];
 
-        return is_numeric($result) && (int) $result > 0
-            ? (int) $result
-            : null;
+        return $this->idOrNull($this->db()->insert($sql, $data));
     }
 
     public function updateEntry(int $entryID, ?int $gradeID): bool
@@ -161,14 +153,164 @@ class CAT4ImportGateway extends QueryableGateway
                 SET gibbonScaleGradeID = :gradeID
                 WHERE gibbonExternalAssessmentStudentEntryID = :entryID";
 
-        return (bool) $this->db()->update($sql, [
+        $data = [
             'entryID' => $entryID,
             'gradeID' => $gradeID,
-        ]);
+        ];
+
+        return (bool) $this->db()->update($sql, $data);
     }
 
     public function getLastErrorMessage(): ?string
     {
         return $this->db()->getErrorMessage();
     }
+
+    /* ---------------------------------------------------------
+       Batch reads
+
+       The importer loads what a file needs up front, then reads from
+       memory. Each returns rows keyed for that lookup.
+    --------------------------------------------------------- */
+
+    /**
+     * People matched on one field, keyed by the value held in the database.
+     *
+     * @param string $field  One of STUDENT_MATCH_FIELDS.
+     * @param array  $values Identifiers found in the file.
+     *
+     * @return array Field value to gibbonPersonID.
+     */
+    public function selectPersonIDsByFieldKeyed(string $field, array $values): array
+    {
+        if (!in_array($field, self::STUDENT_MATCH_FIELDS, true) || empty($values)) {
+            return [];
+        }
+
+        [$placeholders, $data] = $this->inList($values, 'v', $field === 'gibbonPersonID');
+
+        $sql = "SELECT {$field} AS matchValue, gibbonPersonID
+                FROM gibbonPerson
+                WHERE {$field} IN ({$placeholders})";
+
+        $keyed = [];
+
+        foreach ($this->db()->select($sql, $data)->fetchAll() as $row) {
+            $keyed[(string) $row['matchValue']] = (int) $row['gibbonPersonID'];
+        }
+
+        return $keyed;
+    }
+
+    /**
+     * Every grade of the given scales, keyed by scale then value.
+     *
+     * @param array $scaleIDs gibbonScaleID values.
+     *
+     * @return array
+     */
+    public function selectScaleGradesKeyed(array $scaleIDs): array
+    {
+        $scaleIDs = array_filter(array_map('intval', $scaleIDs));
+
+        if (empty($scaleIDs)) {
+            return [];
+        }
+
+        [$placeholders, $data] = $this->inList($scaleIDs, 's', true);
+
+        $sql = "SELECT gibbonScaleID, value, gibbonScaleGradeID
+                FROM gibbonScaleGrade
+                WHERE gibbonScaleID IN ({$placeholders})";
+
+        $keyed = [];
+
+        foreach ($this->db()->select($sql, $data)->fetchAll() as $row) {
+            $keyed[(int) $row['gibbonScaleID']][(string) $row['value']] = (int) $row['gibbonScaleGradeID'];
+        }
+
+        return $keyed;
+    }
+
+    /**
+     * Existing student rows of one assessment on the given dates, keyed by
+     * person then date.
+     *
+     * @param int   $assessmentID gibbonExternalAssessmentID.
+     * @param array $dates        Y-m-d dates found in the file.
+     *
+     * @return array
+     */
+    public function selectExternalAssessmentStudentsKeyed(int $assessmentID, array $dates): array
+    {
+        if (empty($dates)) {
+            return [];
+        }
+
+        [$placeholders, $data] = $this->inList($dates, 'd');
+        $data['assessmentID'] = $assessmentID;
+
+        $sql = "SELECT gibbonExternalAssessmentStudentID, gibbonPersonID, date
+                FROM gibbonExternalAssessmentStudent
+                WHERE gibbonExternalAssessmentID = :assessmentID
+                  AND date IN ({$placeholders})
+                ORDER BY gibbonExternalAssessmentStudentID";
+
+        $keyed = [];
+
+        foreach ($this->db()->select($sql, $data)->fetchAll() as $row) {
+            $personID = (int) $row['gibbonPersonID'];
+            $date = (string) $row['date'];
+
+            // The first row wins, the same as a single selectOne would.
+            if (!isset($keyed[$personID][$date])) {
+                $keyed[$personID][$date] = (int) $row['gibbonExternalAssessmentStudentID'];
+            }
+        }
+
+        return $keyed;
+    }
+
+    /**
+     * Entries of the given student assessment rows, keyed by row then field.
+     *
+     * @param array $studentAssessmentIDs gibbonExternalAssessmentStudentID values.
+     *
+     * @return array Each leaf holds entryID and gradeID.
+     */
+    public function selectEntriesKeyed(array $studentAssessmentIDs): array
+    {
+        $studentAssessmentIDs = array_filter(array_map('intval', $studentAssessmentIDs));
+
+        if (empty($studentAssessmentIDs)) {
+            return [];
+        }
+
+        [$placeholders, $data] = $this->inList($studentAssessmentIDs, 'e', true);
+
+        $sql = "SELECT gibbonExternalAssessmentStudentEntryID,
+                    gibbonExternalAssessmentStudentID,
+                    gibbonExternalAssessmentFieldID,
+                    gibbonScaleGradeID
+                FROM gibbonExternalAssessmentStudentEntry
+                WHERE gibbonExternalAssessmentStudentID IN ({$placeholders})
+                ORDER BY gibbonExternalAssessmentStudentEntryID";
+
+        $keyed = [];
+
+        foreach ($this->db()->select($sql, $data)->fetchAll() as $row) {
+            $rowID = (int) $row['gibbonExternalAssessmentStudentID'];
+            $fieldID = (int) $row['gibbonExternalAssessmentFieldID'];
+
+            if (!isset($keyed[$rowID][$fieldID])) {
+                $keyed[$rowID][$fieldID] = [
+                    'entryID' => (int) $row['gibbonExternalAssessmentStudentEntryID'],
+                    'gradeID' => $this->idOrNull($row['gibbonScaleGradeID']),
+                ];
+            }
+        }
+
+        return $keyed;
+    }
+
 }

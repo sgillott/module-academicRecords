@@ -16,7 +16,7 @@
 use Gibbon\Domain\System\SettingGateway;
 use Gibbon\Module\AcademicRecords\Domain\CourseCreditGateway;
 use Gibbon\Module\AcademicRecords\Domain\StoredGradeGateway;
-use Gibbon\Module\AcademicRecords\Domain\TranscriptGateway;
+use Gibbon\Module\AcademicRecords\Domain\YearGroupMapGateway;
 
 require_once '../../gibbon.php';
 require_once __DIR__ . '/moduleFunctions.php';
@@ -46,13 +46,11 @@ if ($action === 'options') {
         exit;
     }
 
-    $transcriptGateway = $container->get(TranscriptGateway::class);
-
     // Only year groups that exist may be stored, so a tampered field cannot
     // put an unknown ID into the setting.
     $validYearGroupIDs = [];
 
-    foreach ($transcriptGateway->selectYearGroupOptions() as $yearGroup) {
+    foreach ($container->get(YearGroupMapGateway::class)->selectYearGroups() as $yearGroup) {
         $validYearGroupIDs[(string) $yearGroup['gibbonYearGroupID']] = true;
     }
 

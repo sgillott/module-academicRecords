@@ -15,3 +15,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+// Gibbon loads modules/<Name>/js/module.js on every page of the module, with
+// the installed module version as its cache key. It must exist, and it is
+// kept empty on purpose: a page's own script is added by that page with the
+// file's modification time as the key, so a change reaches the browser at
+// once rather than at the next module update.

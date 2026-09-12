@@ -1,8 +1,9 @@
 <?php
 
 use Gibbon\Domain\System\SettingGateway;
+use Gibbon\Module\AcademicRecords\Testwise\Year;
 
-require_once __DIR__ . '/includes/TestwiseYear.php';
+require_once '../../gibbon.php';
 
 $URL = $session->get('absoluteURL') . '/index.php?q=/modules/' . getModuleName($_POST['address'] ?? '') . '/academicRecords_settings.php';
 
@@ -17,7 +18,7 @@ $viewableStudents = ($_POST['viewableStudents'] ?? '') === 'N' ? 'N' : 'Y';
 $viewableParents  = ($_POST['viewableParents'] ?? '') === 'N' ? 'N' : 'Y';
 $testwiseRegion = trim($_POST['testwiseRegion'] ?? '');
 
-if (!array_key_exists($testwiseRegion, testwiseRegionOptions())) {
+if (!array_key_exists($testwiseRegion, Year::regionOptions())) {
     $URL .= '&return=error3';
     header("Location: {$URL}");
     exit;
