@@ -140,6 +140,34 @@ function academicRecordsCarryForward(Form $form, array $values): void
 }
 
 /**
+ * Split the CSV text an uploaded file was read into.
+ *
+ * Gibbon's own importer hands back CSV text for every file type it knows,
+ * including a spreadsheet it has converted, so this is the one place a
+ * page has to turn that text into rows.
+ *
+ * @param string $csvData The file contents as CSV text.
+ *
+ * @return array One array per line, the heading line first.
+ */
+function academicRecordsParseCsv(string $csvData): array
+{
+    $rows = [];
+    $handle = fopen('php://memory', 'r+');
+
+    fwrite($handle, $csvData);
+    rewind($handle);
+
+    while (($data = fgetcsv($handle)) !== false) {
+        $rows[] = $data;
+    }
+
+    fclose($handle);
+
+    return $rows;
+}
+
+/**
  * The classes Gibbon gives the controls inside its bulk action panel, so a
  * coloured row drawn by hand looks the same as the one on the class
  * enrolment page.

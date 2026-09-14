@@ -1,6 +1,47 @@
 CHANGELOG
 =========
 
+v0.7.00
+-------
+New page: Import Historic Grades. It takes a spreadsheet of grades from the
+years before Gibbon was in use and stores them as Internal Assessment
+records, in the same shape Store Grades writes, so the Coverage page and
+the transcript read an imported grade and a stored one alike.
+
+Four steps, the same as CAT4 Import: choose the file, confirm what was
+read, dry run, then run live. CSV and Excel files both work, through
+Gibbon's own import reader. The file needs a Student ID, Year, Semester,
+Subject Name and Semester Grade column. Grade Level and Credit Awarded are
+checked against what Gibbon holds where they are present. Any other column,
+including a name column, is read past and never stored.
+
+Each row names its target in words, and every one of those words can fail,
+so the dry run says why. A row that does not import is listed with the
+reason in plain language: the student ID is not in Gibbon, the school year
+is not named, that year has no such term, no course of that name exists in
+that year, the student is not enrolled in the course, or the same student,
+class and term appears twice. Rows that import but deserve a note are
+listed too, for a Grade Level that disagrees with the enrolment, a credit
+that disagrees with what the course and grade earn, or a course carrying no
+credit at all.
+
+Most reasons skip one row and let the rest of the file import. Four stop
+the whole import, because they suggest the wrong file rather than a gap in
+one row: an unknown student ID, an unknown school year, a duplicated row,
+and a heading row missing a column. Blank lines at the end of an export are
+counted and ignored.
+
+The file names no grade scale, so one is chosen on the first step. A class
+whose grades do not all fit that scale is matched to the one active scale
+that does hold them, which is how a pass or fail course imports alongside
+graded ones without a second run. A class that fits no scale, or more than
+one, is not guessed at.
+
+Running the same file twice is safe. A column is matched on class, name and
+type, so the second run updates rather than duplicates, and reports what it
+would replace before it does. Effort values written by Store Grades are
+left alone.
+
 v0.6.00
 -------
 View Academic Records now does something. Choose a student and the page
@@ -37,6 +78,13 @@ and has nothing stored is marked, a term not yet begun is greyed, and a
 line at the top counts the classes with a gap. The list can be narrowed to
 one year group, and courses switched off for transcripts are hidden unless
 asked for, because a gap in them does not matter.
+Course Credits has a Copy All To Next Year button, the same as Manage
+Courses. It copies the credit and the transcript switch of every course in
+the year shown to the course of the same short name in the next year,
+replacing whatever is set there, and reports how many were copied and how
+many had no course to copy to. Credits are per school year because a
+Gibbon course is, so without this every new year started with none, and a
+transcript for the new year printed grades with no credit beside them.
 Store Grades and CAT4 Import are much faster on a full file. The dry run
 used to read the database once for every class and again for every student,
 so a cycle of two thousand grades took over a thousand queries. It now reads

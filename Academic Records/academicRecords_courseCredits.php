@@ -27,6 +27,8 @@
 
 use Gibbon\Forms\Form;
 use Gibbon\Services\Format;
+use Gibbon\Tables\Action;
+use Gibbon\Domain\School\SchoolYearGateway;
 use Gibbon\Domain\System\SettingGateway;
 use Gibbon\Module\AcademicRecords\Domain\CourseCreditGateway;
 use Gibbon\Module\AcademicRecords\Domain\YearGroupMapGateway;
@@ -41,11 +43,20 @@ if (!isActionAccessible($guid, $connection2, '/modules/Academic Records/academic
 $page->breadcrumbs->add(__('Course Credits'));
 echo '<h2>' . __('Course Credits') . '</h2>';
 
+$page->return->addReturns([
+    'success1' => __('Copied. {copied} courses in the next year took their credit and transcript switch from this one. {unmatched} courses had no course of the same short name in the next year and were skipped.', [
+        'copied' => '<b>' . (int) ($_GET['copied'] ?? 0) . '</b>',
+        'unmatched' => '<b>' . (int) ($_GET['unmatched'] ?? 0) . '</b>',
+    ]),
+]);
+
 $creditGateway = $container->get(CourseCreditGateway::class);
 $settingGateway = $container->get(SettingGateway::class);
 
 $gibbonSchoolYearID = $_GET['gibbonSchoolYearID'] ?? $session->get('gibbonSchoolYearID');
 $page->navigator->addSchoolYearNavigation($gibbonSchoolYearID);
+
+$nextYear = $container->get(SchoolYearGateway::class)->getNextSchoolYearByID($gibbonSchoolYearID);
 
 /* -----------------------------------------------------
    Year groups a transcript covers
@@ -92,6 +103,26 @@ echo Format::alert(
     __('Credit is the amount one term of the course is worth. A course with no credit is still printed, but claims nothing, which suits a course that is studied and not graded. A course with Show on Transcript unticked never reaches a transcript.'),
     'message'
 );
+
+/* -----------------------------------------------------
+   Copy to next year
+
+   The same button Manage Courses has. Courses are matched by short name,
+   which is what a course keeps when Manage Courses copies it forward.
+----------------------------------------------------- */
+
+if (!empty($nextYear)) {
+    $copy = (new Action('copy', __('Copy All To Next Year')))
+        ->directLink()
+        ->setURL('/modules/Academic Records/academicRecords_courseCreditsCopyProcess.php')
+        ->addParam('gibbonSchoolYearID', $gibbonSchoolYearID)
+        ->addParam('gibbonSchoolYearIDNext', $nextYear['gibbonSchoolYearID'])
+        ->setIcon('copy')
+        ->onClick('return confirm("' . __('Are you sure you want to do this? Every course credit and transcript switch of this school year will be copied to {year}, replacing any already set there.', ['year' => $nextYear['name']]) . '");')
+        ->displayLabel();
+
+    echo '<div class="flex justify-end mb-2">' . $copy->getOutput() . '</div>';
+}
 
 /* -----------------------------------------------------
    The table

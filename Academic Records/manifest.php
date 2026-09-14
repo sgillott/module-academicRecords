@@ -6,7 +6,7 @@ $description = 'Stores reported grade scale outcomes as authoritative academic r
 $entryURL    = 'academicRecords_store.php';
 $type        = 'Additional';
 $category    = 'Assess';
-$version     = '0.6.00';
+$version     = '0.7.00';
 $author      = 'Steve Gillott';
 $url         = '';
 
@@ -191,6 +191,26 @@ $actionRows = [
         'description'               => 'Stores reported grade scale values from a reporting cycle as academic records.',
         'URLList'                   => 'academicRecords_store.php,academicRecords_store_ajax.php',
         'entryURL'                  => 'academicRecords_store.php',
+        'entrySidebar'              => 'Y',
+        'menuShow'                  => 'Y',
+        'defaultPermissionAdmin'    => 'Y',
+        'defaultPermissionTeacher'  => 'N',
+        'defaultPermissionStudent'  => 'N',
+        'defaultPermissionParent'   => 'N',
+        'defaultPermissionSupport'  => 'N',
+        'categoryPermissionStaff'   => 'Y',
+        'categoryPermissionStudent' => 'N',
+        'categoryPermissionParent'  => 'N',
+        'categoryPermissionOther'   => 'N',
+    ],
+
+    [
+        'name'                      => 'Import Historic Grades',
+        'precedence'                => '1',
+        'category'                  => 'Manage',
+        'description'               => 'Imports grades from a spreadsheet for the years before Gibbon was in use.',
+        'URLList'                   => 'academicRecords_historicImport.php',
+        'entryURL'                  => 'academicRecords_historicImport.php',
         'entrySidebar'              => 'Y',
         'menuShow'                  => 'Y',
         'defaultPermissionAdmin'    => 'Y',
@@ -432,7 +452,7 @@ $actionRows = [
         'precedence'                => '9',
         'category'                  => 'Settings',
         'description'               => 'Sets the credit each course carries, and whether it appears on a transcript.',
-        'URLList'                   => 'academicRecords_courseCredits.php,academicRecords_courseCreditsProcess.php',
+        'URLList'                   => 'academicRecords_courseCredits.php,academicRecords_courseCreditsProcess.php,academicRecords_courseCreditsCopyProcess.php',
         'entryURL'                  => 'academicRecords_courseCredits.php',
         'entrySidebar'              => 'Y',
         'menuShow'                  => 'Y',

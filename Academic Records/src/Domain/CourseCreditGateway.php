@@ -123,6 +123,58 @@ class CourseCreditGateway extends QueryableGateway
     }
 
     /**
+     * Copy every course's credit and transcript switch to another school year.
+     *
+     * A course is matched by its short name, because a Gibbon course belongs
+     * to one school year and gets a new ID when it is copied forward. A course
+     * in the target year with the same short name takes the values, whether
+     * or not it already had some. A source course with no counterpart in the
+     * target year is skipped and counted.
+     *
+     * @param string $fromSchoolYearID Year to read.
+     * @param string $toSchoolYearID   Year to write.
+     * @param int    $actorID          Who is copying.
+     *
+     * @return array Keys copied, unmatched and failed.
+     */
+    public function copyToSchoolYear(string $fromSchoolYearID, string $toSchoolYearID, int $actorID): array
+    {
+        $targets = [];
+
+        foreach ($this->selectCoursesBySchoolYear($toSchoolYearID) as $course) {
+            $targets[strtolower(trim((string) $course['nameShort']))] = (string) $course['gibbonCourseID'];
+        }
+
+        $counts = ['copied' => 0, 'unmatched' => 0, 'failed' => 0];
+
+        foreach ($this->selectCoursesBySchoolYear($fromSchoolYearID) as $course) {
+            // Only a course with something set is worth copying. One with no
+            // row yet has nothing to say about the next year.
+            if ($course['creditPerTerm'] === null && $course['showOnTranscript'] === null) {
+                continue;
+            }
+
+            $targetID = $targets[strtolower(trim((string) $course['nameShort']))] ?? null;
+
+            if ($targetID === null) {
+                $counts['unmatched']++;
+                continue;
+            }
+
+            $saved = $this->saveCourseCredit(
+                $targetID,
+                $course['creditPerTerm'] !== null ? (string) $course['creditPerTerm'] : null,
+                (string) ($course['showOnTranscript'] ?? 'Y'),
+                $actorID
+            );
+
+            $counts[$saved ? 'copied' : 'failed']++;
+        }
+
+        return $counts;
+    }
+
+    /**
      * Scales that a stored grade could be recorded on.
      *
      * @return array
